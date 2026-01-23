@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #*****************************************************************************
-#  Name: SVJedi-Tag
+#  Name: LR_Stats
 #  Description: Genotyping of SVs with linked-reads data
 #  Copyright (C) 2025 INRIA
 #  Author: Mélody Temperville
@@ -31,10 +31,6 @@ from prettytable import PrettyTable
 import  matplotlib.pyplot as plt
 import pandas as pd
 
-# input = sys.argv[1]
-# mol_size = int(sys.argv[2])
-# #mol_size = 100000
-
 #####################################################################################################
 ### CLASS
 
@@ -60,11 +56,12 @@ class Barcode:
     def count_mol(self):
         return len(self.mol)
     
-    def count_not_count_reads(self, nb_reads):
+    def count_not_count_reads(self, nb_reads): #number of reads in molecule with less than 3 reads
         self.not_count_reads += nb_reads
 
-    def nb_read_post_deconvolution(self):
-        return (len(self.reads) - self.not_count_reads)
+    def nb_read_post_deconvolution(self): #number of reads without the number of reads in molecule with less than 3 reads
+        a = len(self.reads) - self.not_count_reads
+        return a
     
 #####################################################################################################
 
@@ -79,15 +76,15 @@ def main(args) :
 
     parser.add_argument( "-b", "--bam", metavar="<sort_bam_file>", help= "Bam file out of a mapping linked-reads/reference and with BX tag", type=str, required=True)
     parser.add_argument( "-s", "--molecule_max_size", metavar="<molecule_max_size>", help="Maximum size between two reads to share a same barcode and from the same molecule [default=100000]",type=int, required=False, default=100000)
-    parser.add_argument( "-G", "--graph_output", metavar="<graphe_output_path/name_file>", help="Path/Name_file for the output graph.png [default=ACLR_graph.png]", type=str, required=False, default="ACLR_graph.png")
-    parser.add_argument( "-o", "--output_table", metavar="<output_table_path/name_file>",help="Path/Name_file for the output table.csv [default=ACLR_table.csv] ", type=str, required=False, default="ACLR_table.csv")
+    parser.add_argument( "-G", "--graph_output", metavar="<graphe_output_path/name_file>", help="Path/Name_file for the output graph.png [default=LR_Stats_graph.png]", type=str, required=False, default="LRStats_graph.png")
+    parser.add_argument( "-o", "--output_table", metavar="<output_table_path/name_file>",help="Path/Name_file for the output table.csv [default=LR_Stats_table.csv] ", type=str, required=False, default="LRStats_table.csv")
     parser.add_argument( "-g", "--genome_size", metavar="<genome_size>", help="Genome size required to calculate depth", type=int, required=False, default=0)
     parser.add_argument( "-r", "--read_size", metavar="<read_size>", help="Read size required to calculate depth", type=int, required=False, default=150)
 
 
     args = parser.parse_args()
     input = args.bam
-    mol_size = args.molecule_max_size 
+    mol_max_size = args.molecule_max_size 
     output_histo = args.graph_output
     out_table = args.output_table
     genome_size = args.genome_size
@@ -103,6 +100,12 @@ def main(args) :
     nb_read = 0
     
     bam_file = pysam.AlignmentFile(input, "rb")
+    # Find genome size
+    if genome_size == 0 :
+        for sq in bam_file.header["SQ"]:
+            genome_size = genome_size + sq["LN"]
+
+
     for read in bam_file.fetch():
         nb_read +=1
         barcode = read.get_tag("BX") #Take barcode from the BX tag
@@ -138,70 +141,73 @@ def main(args) :
     ### Deconvolution (find originate molecules)
     #####################################################################################################
 
-    ### Function ###  
-    def create_mol(num_first_read, num_last_read, mol_size, dico_mol, barcodes, barcode, c, not_mol, nb_read_not_count, dico_Barcode):
+    ### --------------------------------------- Function --------------------------------------- ###  
+    def create_mol(num_first_read, num_last_read, mol_max_size, dico_mol, barcodes, barcode, c, not_mol, nb_read_not_count, dico_Barcode, nb_reads_mol):
+        '''Function for finding the original molecules in linked-reads data based on barcode information and a maximum possible size for a molecule.'''
 
-        dist_between_first_last = barcodes[barcode][num_last_read][1] - barcodes[barcode][num_first_read][0]  # La distance incluant les reads donc debut du premier - fin du dernier
-        #Step 1 : Trouver les extrémités de la molécule 
-        while dist_between_first_last > mol_size : #Si la distance entre le 1er read et le (n-x) est inférieur a molécule size alors ça s'arrete
-            num_last_read = num_last_read -1 # On prend le n-1 comme dernier
-            dist_between_first_last = barcodes[barcode][num_last_read][1] - barcodes[barcode][num_first_read][0]
+        dist_between_first_last = barcodes[barcode][num_last_read][1] - barcodes[barcode][num_first_read][0]  # distance between the start of the first read and the end of the last one (for a barocde)
+        #Step 1 : To find the molecule extremity
+        while dist_between_first_last > mol_max_size : #while the distance between the first and the  last (or the (n-x)) if lower than the max size for a molecule (paramter)
+            num_last_read = num_last_read -1 # We take the n-1 as the last
+            dist_between_first_last = barcodes[barcode][num_last_read][1] - barcodes[barcode][num_first_read][0] # And we calculate the distance again
 
-        # Ajouter la molécule au dico mol (tous les readss compris entre les extrémités)
-        #dico_mol[f"{barcode}-{c}"]=[] # Initialise clé
-
+        #Stap 2 : Add the molecule (all reads in the molecule) in the dictionary dico_mol {"barcode-numero_of_molecule" : [reads]}
         barcode_obj = dico_Barcode[barcode.split('-@-')[1]]
-        temp = []
-        for i in range(num_first_read,num_last_read+1) :
-            temp.append(barcodes[barcode][i]) # +1 car python et donc je dois compter de 0 a X (ex : 0 a 5 = 6 (0,1,2,3,4,5) )
-            #dico_mol[f"{barcode}-{c}"].append(barcodes[barcode][i])
-        if len(temp) > 2 :  #Ne pas prend en compte les molecules de moins de 3 reads
-            dico_mol[f"{barcode}-{c}"] =temp
-            barcode_obj.add_mol(temp)
-            c +=1 # molecule number with more than 3 reads
-        else :
-            not_mol +=1 #molecule number woth less than 3 reads
+        temp = [] #list of reads in the molecule
+        for i in range(num_first_read,num_last_read+1) : # +1 because of python count between 0 and x (ex : 0 a 5 = 6 (0,1,2,3,4,5) )
+            temp.append(barcodes[barcode][i]) 
+            nb_reads_mol +=1
+
+        dico_mol[f"{barcode}-%-{c}"] =temp
+        barcode_obj.add_mol(temp)
+        c +=1 
+        if len(temp) <= 2 :
+            not_mol +=1 #molecule number with less than 3 reads
             nb_read_not_count = nb_read_not_count + len(temp) # number of reads lost
          
-        return [num_last_read, dico_mol, c, not_mol, nb_read_not_count]
+        return [num_last_read, dico_mol, c, not_mol, nb_read_not_count, nb_reads_mol]
         
-    ###############
+    #######------------------------------------------------------------------------------------########
 
 
     dico_mol ={}
-    #nb_mol_per_bc = []
     nb_read_per_mol = []
-    post_mol_size = []
-    not_mol=0
-
+    not_mol = 0
+    nb_reads_mol = 0
+    
 
     for barcode in barcodes.keys() :
 
-        c=0
-        nb_read_not_count = 0
+        c=0 #number of mol
+        nb_read_not_count = 0 #number of reads not count per barcode
+         
         result = []
-
-        # Intialisation du prrmier read
+        
+        ### Intialisation of the first read ###
         num_first_read = 0
-        num_last_read = len(barcodes[barcode])-1 # -1 car python commence a 0
-        result = create_mol(num_first_read, num_last_read, mol_size, dico_mol, barcodes, barcode, c, not_mol, nb_read_not_count, dico_Barcode)
+        
+        num_last_read = len(barcodes[barcode])-1 # -1 because of python (start with 0)
+        result = create_mol(num_first_read, num_last_read, mol_max_size, dico_mol, barcodes, barcode, c, not_mol, nb_read_not_count, dico_Barcode, nb_reads_mol)
 
-        # Run create_mol sur l'ensemble du barcode temps que une molécule ne finit pas par le dernier read. 
-        while result[0] != len(barcodes[barcode])-1 : #-1 car len compte pas a partir de 0
+        # Create molecule with all the reads which share the same barcode 
+        while result[0] != len(barcodes[barcode])-1 : # while the last read isn't see (-1 because of python)
             num_first_read = result[0]+1
             dico_mol = result[1]
             c = result[2]
             not_mol = result[3]
             nb_read_not_count = result[4]
+            nb_reads_mol = result[5]
                 
-            result = create_mol(num_first_read, num_last_read, mol_size, dico_mol, barcodes, barcode, c, not_mol, nb_read_not_count, dico_Barcode)
+            result = create_mol(num_first_read, num_last_read, mol_max_size, dico_mol, barcodes, barcode, c, not_mol, nb_read_not_count, dico_Barcode, nb_reads_mol)
 
         nb_read_not_count = result[4]
-        c = result[2]
+        c = result[2] # utile ?
+        nb_reads_mol = result[5] # utile ?
         # Save information of reads not count
         barcode_obj = dico_Barcode[barcode.split('-@-')[1]]
-        barcode_obj.count_not_count_reads(nb_read_not_count)
-        #nb_mol_per_bc.append(c) # liste des nombres de molécule par barcodes
+        barcode_obj.count_not_count_reads(nb_read_not_count) #number of reads on molecule with less than 3 reads
+
+    print(len(barcodes))
 
 
     #####################################################################################################
@@ -213,151 +219,195 @@ def main(args) :
     list_nb_read_bc_postD = []
     nb_read_lost = []
     nb_mol_per_bc = []
+    all_mol = []
+    nb_read_per_post_mol = []
+    nb_read_post_filter =[]
 
     for bc, obj in dico_Barcode.items() :
-        list_nb_read_bc.append((obj.count_reads()))
+
+        if obj.count_reads() == 0 :
+            print('oooo')
+            continue
+        
+        list_nb_read_bc.append(obj.count_reads())
         unmap_list.append(obj.unmap)
-        list_nb_read_bc_postD.append(obj.nb_read_post_deconvolution())
-        nb_read_lost.append(obj.not_count_reads)
-        nb_mol_per_bc.append(obj.count_mol())
-
-    # Supprimer les zeros pour ne prendre en compte que les barcodes qui n'ont pas de molecules
-    list_nb_read_bc = [x for x in list_nb_read_bc if x > 0] 
-    list_nb_read_bc_postD = [x for x in list_nb_read_bc_postD if x > 0]
-    nb_mol_per_bc= [x for x in nb_mol_per_bc if x > 0]
-
-    mean_nb_read_per_bc = statistics.mean(list_nb_read_bc)
-    median_nb_read_per_bc = statistics.median(list_nb_read_bc)
-
-    mean_nb_read_per_bc_postD = statistics.mean(list_nb_read_bc_postD)
-    median_nb_read_per_bc_postD = statistics.median(list_nb_read_bc_postD)
+        nb_read_post_filter.append(obj.nb_read_post_deconvolution())
+        nb_mol_per_bc.append(obj.count_mol()) 
 
     nb_unmap = sum(unmap_list)
-    nb_reads_lost = sum(nb_read_lost)
 
+    mol_size_filt = [] #molecule size post deconvolution (with only molecule with more than 3 reads)
+    bc_more3R = {}
+    bc_mol = {}
+    nb_read_mol_more3R =[]
+    nb_mol_filt = 0
+    read_bc_mol = {}
+    read_bc_molfilt = {}
     ## Recuperation des stats ##
-
     for mol in dico_mol.keys(): 
     # Nombre de reads par molécule
         nb_read_per_mol.append(len(dico_mol[mol]))
-    # Taille des molécules
         size = dico_mol[mol][-1][1] - dico_mol[mol][0][0]
-        post_mol_size.append(size) 
 
-        
-    median_nb_mol_per_bc = statistics.median(nb_mol_per_bc)
-    mean_nb_mol_per_bc = statistics.mean(nb_mol_per_bc)
+        # Filtering molecule with more than 3 reads
+        if len(dico_mol[mol]) >2 :
+            nb_mol_filt += 1
+            nb_read_mol_more3R.append(len(dico_mol[mol]))
+            mol_size_filt.append(size)
+
+            barcode = (mol.split('-%-')[0]).split('@')[1] #On veut barcode pas par chrom
+
+            if barcode not in bc_more3R :
+                bc_more3R[barcode] = 1 #clé nombre de barcode, valeur nombre de mol par bc
+                read_bc_molfilt[barcode] = len(dico_mol[mol])
+            else : 
+                bc_more3R[barcode] += 1
+                read_bc_molfilt[barcode] += len(dico_mol[mol])
+                
+        if  len(dico_mol[mol]) > 0 :
+            all_mol.append(size)
+            barcode = (mol.split('-%-')[0]).split('@')[1]
+
+            if barcode not in bc_mol :
+                bc_mol[barcode] = 1
+                read_bc_mol[barcode] = len(dico_mol[mol])
+            else :
+                bc_mol[barcode] += 1
+                read_bc_mol[barcode] += len(dico_mol[mol])
 
 
+    #######################
+    ##### STATISTICS ######
+    #######################
+
+    # Nombre de reads
+    # nb_read : nombre de read dans fichier bam
+    # nb_reads_mol : nombre de reads en l'ensemble de molecules
+    nb_read_filtmore3R = sum(nb_read_post_filter)
+
+    #Nombre de barcodes
+    nb_bc_more3R = len(bc_more3R)
+    nb_bc_mol = len(bc_mol) 
+
+    #Liste du nombre de mol par barcode
+    list_nb_mol_bc_allmol = list(bc_mol.values())
+    list_nb_mol_bc_filtmol = list(bc_more3R.values())
+
+    #List du nombre de reads par bc
+    nb_read_per_bc_mol = list(read_bc_mol.values())
+    nb_read_per_bc_molfilt = list(read_bc_molfilt.values())
+
+    ### Number of reads per barcode -----------------------------------------###    
+    # No deconvolution
+    mean_nb_read_bc_raw = statistics.mean(list_nb_read_bc)
+    median_nb_read_bc_raw = statistics.median(list_nb_read_bc)
+    # Deconvolution no filtering
+    mean_nb_read_per_bc = statistics.mean(nb_read_per_bc_mol)
+    median_nb_read_per_bc = statistics.median(nb_read_per_bc_mol)
+    # Deconvoultion filtering
+    mean_nb_read_per_bc_filt = statistics.mean(nb_read_per_bc_molfilt)
+    median_nb_read_per_bc_filt = statistics.median(nb_read_per_bc_molfilt)
+    ### ------------------------------------------------------------------- ###
+    ### Number of molecules per barcode ------------------------------------###
+    # Deconvoultion no filtering
+    median_nb_mol_per_bc = statistics.median(list_nb_mol_bc_allmol)
+    mean_nb_mol_per_bc = statistics.mean(list_nb_mol_bc_allmol)
+
+    # Deconvoultion filtering
+    mean_nb_mol_per_bc_filtmol =statistics.mean(list_nb_mol_bc_filtmol)
+    median_nb_mol_per_bc_filtmol =statistics.median(list_nb_mol_bc_filtmol)
+    ### ------------------------------------------------------------------- ###
+    ### Number of read per mol ---------------------------------------------###
+    # Deconvolution no filtering
     median_nb_read_per_mol =statistics.median(nb_read_per_mol)
     mean_nb_read_per_mol =statistics.mean(nb_read_per_mol)
-
-    median_mol_size = statistics.median(post_mol_size)
-    mean_mol_size = statistics.mean(post_mol_size)
+    # Deconvolution filtering
+    median_nb_read_per_mol_filt =statistics.median(nb_read_mol_more3R)
+    mean_nb_read_per_mol_filt =statistics.mean(nb_read_mol_more3R)
+    ### ------------------------------------------------------------------- ###
+    ### Molecule size ----------------------------------------------------- ###
+    # Deconvolution no filtering
+    median_all_mol_size = statistics.median(all_mol)
+    mean_all_mol_size = statistics.mean(all_mol)
+    # Deconvolution filtering
+    median_mol_size_filt = statistics.median(mol_size_filt)
+    mean_mol_size_filt = statistics.mean(mol_size_filt)
+    ### ------------------------------------------------------------------- ###
 
 
     #####################################################################################################
     #####################################################################################################
     ### Coverage et deepth
-    moy_reads_mol_covs = (mean_nb_read_per_mol * read_size) / mean_mol_size
+    moy_reads_mol_covs = (mean_nb_read_per_mol * read_size) / mean_all_mol_size
+    moy_reads_molfilt_covs = (mean_nb_read_per_mol_filt *read_size)/mean_mol_size_filt
 
-    if genome_size == 0 : 
-        coverage_mol_genome = " "
-        coverage_read_genome = " "
-    else :
-        #coverage_mol_genome = (10000 * len(molecule)) / genome_size
-        coverage_mol_genome = ( len(dico_mol) * mean_mol_size) / genome_size
+    coverage_mol_genome = ( len(dico_mol) * mean_all_mol_size) / genome_size
+    coverage_molfilt_genome = ( nb_mol_filt* mean_mol_size_filt) / genome_size
         
-        # 3. Génome coverage by reads
+    # 3. Génome coverage by reads
+    coverage_read_genome = (nb_read * read_size) / genome_size #4641652 
 
-        coverage_read_genome = (nb_read * read_size) / genome_size #4641652 
+    cov_read_genome_mol =(nb_reads_mol * read_size) / genome_size
+    cov_read_genome_molfilt =(nb_read_filtmore3R * read_size) / genome_size
 
 
-    per_read_lost = int((nb_reads_lost /nb_read) * 100)
-    per_bc_lost = int((len(list_nb_read_bc_postD)/len(dico_Barcode))*100)
-    #############################################################################################
+############################################################
     #OUTPUT
     table = PrettyTable()
-    table.field_names = ["Pre-deconvolution", " "]
-
-    table.add_row(["Number of reads", nb_read])
-    table.add_row(["Number of unmapped reads", nb_unmap])
-    table.add_row(["Number of barcodes", len(dico_Barcode)])
-    table.add_row(["Read depth per genome", coverage_read_genome])
-    table.add_row(["Mean number of reads per barcode (pre-deconvolution)", mean_nb_read_per_bc])
-    table.add_row(["Median number of reads per barcode (pre-deconvolution)", median_nb_read_per_bc])
-    table.add_row(["--------------------------------------------------------", "------------------------"])
-    table.add_row(["Post-deconvolution", " "])
-    table.add_row(["--------------------------------------------------------", "------------------------"])
-    table.add_row(["Number of barcodes (post-deconvolution)", f"{len(list_nb_read_bc_postD)} ({per_bc_lost}% of barcodes lost)"])
-    table.add_row(["Total number of molecules", len(dico_mol)])
-    table.add_row(["Number of molecules with fewer than 3 reads", not_mol])
-    table.add_row(["Number of reads lost", f"{nb_reads_lost} ({per_read_lost}% of reads)"])
-    table.add_row(["Number of reads (post-deconvolution)", (nb_read - nb_reads_lost)])
-    table.add_row(["  ", "  "])
-    table.add_row(["Mean molecule size", mean_mol_size])
-    table.add_row(["Median molecule size", median_mol_size])
-    table.add_row(["  ", "  "])
-    table.add_row(["Mean number of reads per barcode (post-deconvolution)", mean_nb_read_per_bc_postD])
-    table.add_row(["Median number of reads per barcode (post-deconvolution)", median_nb_read_per_bc_postD])
-    table.add_row(["  ", "  "])
-    table.add_row(["Mean number of reads per molecule", mean_nb_read_per_mol])
-    table.add_row(["Median number of reads per molecule", median_nb_read_per_mol])
-    table.add_row(["  ", "  "])
-    table.add_row(["Mean number of molecules per barcode", mean_nb_mol_per_bc])
-    table.add_row(["Median number of molecules per barcode", median_nb_mol_per_bc])
-    table.add_row(["  ", "  "])
-    table.add_row(["Read depth per molecule", moy_reads_mol_covs])
-    table.add_row(["Molecule depth per genome", coverage_mol_genome])
-
-
+    table.field_names = [" ","Raw data", "Creating molecules no filtering","Creating molecules with more than 3 reads"]
+    table.add_row(["Number of reads", nb_read , nb_reads_mol ,nb_read_filtmore3R])
+    table.add_row(["Number of barcodes", len(dico_Barcode), nb_bc_mol, nb_bc_more3R ])
+    table.add_row(["Number of unmapped reads",nb_unmap , "","" ])
+    table.add_row(["Mean number of reads per barcode", round(mean_nb_read_bc_raw,1), round(mean_nb_read_per_bc,1),round(mean_nb_read_per_bc_filt,1) ])
+    table.add_row(["Median number of reads per barcode",round(median_nb_read_bc_raw,1) ,round(median_nb_read_per_bc,1) , round(median_nb_read_per_bc_filt,1)])
+    table.add_row(["Read depth per genome",round(coverage_read_genome,1) ,round(cov_read_genome_mol,1) ,round(cov_read_genome_molfilt,1) ])
+    table.add_row(["---","---" ,"---" , "---"])
+    table.add_row(["Number of molecules"," ", len(dico_mol),nb_mol_filt])
+    table.add_row(["Mean molecule size","" ,round(mean_all_mol_size,1) ,round(mean_mol_size_filt,1) ])
+    table.add_row(["Median molecule size","" , round(median_all_mol_size,1), round(median_mol_size_filt,1)])
+    table.add_row(["Mean number of reads per molecule","" ,round(mean_nb_read_per_mol,1) ,round(mean_nb_read_per_mol_filt,1) ])   
+    table.add_row(["Median number of reads per molecule", "",round(median_nb_read_per_mol,1) ,round(median_nb_read_per_mol_filt,1) ])
+    table.add_row(["Mean number of molecules per barcode","" ,round(mean_nb_mol_per_bc,1) , round(mean_nb_mol_per_bc_filtmol,1)])
+    table.add_row(["Median number of molecules per barcode",""  ,round(median_nb_mol_per_bc,1) , round(median_nb_mol_per_bc_filtmol,1)])
+    table.add_row(["Read depth per molecule","" ,round(moy_reads_mol_covs,1) ,round(moy_reads_molfilt_covs,1) ])
+    table.add_row(["Molecule depth per genome", "",round(coverage_mol_genome,1) ,round(coverage_molfilt_genome,1) ])
     # Afficher le tableau
     print(table)
 
 
     #### OUTPUT GRAPHE
-
     plt.style.use('seaborn-v0_8-paper')
 
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
     # Molecule size distribution
-    axes[0, 0].hist(post_mol_size, bins=50, linewidth=0.5, edgecolor="white", color="teal")
-    axes[0, 0].axvline(mean_mol_size, color='black', linestyle='dotted', linewidth=1, label=f'Mean: {mean_mol_size:.2f}')
-    axes[0, 0].axvline(median_mol_size, color='black', linestyle='solid', linewidth=1, label=f'Median: {median_mol_size:.2f}')
+    axes[0, 0].hist(mol_size_filt, bins=50, linewidth=0.5, edgecolor="white", color="teal")
+    axes[0, 0].axvline(mean_mol_size_filt, color='black', linestyle='dotted', linewidth=1, label=f'Mean: {mean_mol_size_filt:.2f}')
+    axes[0, 0].axvline(median_mol_size_filt, color='black', linestyle='solid', linewidth=1, label=f'Median: {median_mol_size_filt:.2f}')
     axes[0, 0].legend()
     axes[0, 0].set_title("Histogram of molecule size")
     axes[0, 0].set_xlabel("Size (pb)")
     axes[0, 0].set_ylabel("Number of molecules")
 
     # Number of reads per molecule vs molecule size
-    axes[0, 1].scatter(post_mol_size, nb_read_per_mol, color='olivedrab', s=10, alpha = 0.4 )
+    axes[0, 1].scatter(mol_size_filt, nb_read_mol_more3R, color='olivedrab', s=4, alpha = 0.1 )
     axes[0, 1].set_title("Number of reads per molecule VS molecule size")
     axes[0, 1].set_xlabel("Size (pb)")
     axes[0, 1].set_ylabel("Number of reads")
 
     # Histogram of number of reads per molecule
-    axes[1, 0].hist(nb_read_per_mol, bins=50, linewidth=0.5, edgecolor="white", color="coral")
-    axes[1, 0].axvline(mean_nb_read_per_mol, color='black', linestyle='dotted', linewidth=1, label=f'Mean: {mean_nb_read_per_mol:.2f}')
-    axes[1, 0].axvline(median_nb_read_per_mol, color='black', linestyle='solid', linewidth=1, label=f'Median: {median_nb_read_per_mol:.2f}')
+    axes[1, 0].hist(nb_read_mol_more3R, bins=50, linewidth=0.5, edgecolor="white", color="coral")
+    axes[1, 0].axvline(mean_nb_read_per_mol, color='black', linestyle='dotted', linewidth=1, label=f'Mean: {mean_nb_read_per_mol_filt:.2f}')
+    axes[1, 0].axvline(median_nb_read_per_mol, color='black', linestyle='solid', linewidth=1, label=f'Median: {median_nb_read_per_mol_filt:.2f}')
     axes[1, 0].legend()
     axes[1, 0].set_title("Histogram of number of reads per molecule")
     axes[1, 0].set_xlabel("Number of reads")
     axes[1, 0].set_ylabel("Number of molecules")
 
-    # # Quatrième graphique : Histogramme du nombre de reads par barcode
-    # axes[1, 1].hist(list_nb_read_bc, bins=50, linewidth=0.5, edgecolor="white", color="goldenrod")
-    # axes[1, 1].axvline(mean_nb_read_per_bc, color='black', linestyle='dotted', linewidth=1, label=f'Mean: {mean_nb_read_per_bc:.2f}')
-    # axes[1, 1].axvline(median_nb_read_per_bc, color='black', linestyle='solid', linewidth=1, label=f'Median: {median_nb_read_per_bc:.2f}')
-    # axes[1, 1].legend()
-    # axes[1, 1].set_title("Histogram of number of reads per barcode preD")
-    # axes[1, 1].set_xlabel("Number of reads")
-    # axes[1, 1].set_ylabel("Number of barcodes")
-
-    # # Quatrième graphique : Histogramme du nombre de reads par barcode
-    axes[1, 1].hist(list_nb_read_bc_postD, bins=50, linewidth=0.5, edgecolor="white", color="goldenrod")
-    axes[1, 1].axvline(mean_nb_read_per_bc_postD, color='black', linestyle='dotted', linewidth=1, label=f'Mean: {mean_nb_read_per_bc_postD:.2f}')
-    axes[1, 1].axvline(median_nb_read_per_bc_postD, color='black', linestyle='solid', linewidth=1, label=f'Median: {median_nb_read_per_bc_postD:.2f}')
+    # Histogramme of number of reads per barcode
+    axes[1, 1].hist(nb_read_per_bc_molfilt, bins=50, linewidth=0.5, edgecolor="white", color="goldenrod")
+    axes[1, 1].axvline(mean_nb_read_per_bc_filt, color='black', linestyle='dotted', linewidth=1, label=f'Mean: {mean_nb_read_per_bc_filt:.2f}')
+    axes[1, 1].axvline(median_nb_read_per_bc_filt, color='black', linestyle='solid', linewidth=1, label=f'Median: {median_nb_read_per_bc_filt:.2f}')
     axes[1, 1].legend()
     axes[1, 1].set_title("Histogram of number of reads per barcode post-deconvolution")
     axes[1, 1].set_xlabel("Number of reads")
@@ -370,68 +420,54 @@ def main(args) :
     plt.savefig(output_histo)
 
     print(f"The graphics have been saved as '{output_histo}'")
+    data = [
+        ["Number of reads", nb_read, nb_reads_mol, nb_read_filtmore3R],
+        ["Number of barcodes", len(dico_Barcode), nb_bc_mol, nb_bc_more3R],
+        ["Number of unmapped reads", nb_unmap, "", ""],
+        ["Mean number of reads per barcode",
+        round(mean_nb_read_bc_raw, 1),
+        round(mean_nb_read_per_bc, 1),
+        round(mean_nb_read_per_bc_filt, 1)],
+        ["Median number of reads per barcode",
+        round(median_nb_read_bc_raw, 1),
+        round(median_nb_read_per_bc, 1),
+        round(median_nb_read_per_bc_filt, 1)],
+        ["Read depth per genome",
+        round(coverage_read_genome, 1),
+        round(cov_read_genome_mol, 1),
+        round(cov_read_genome_molfilt, 1)],
+        ["---", "---", "---", "---"],
+        ["Number of molecules", "", len(dico_mol), nb_mol_filt],
+        ["Mean molecule size", "", round(mean_all_mol_size, 1), round(mean_mol_size_filt, 1)],
+        ["Median molecule size", "", round(median_all_mol_size, 1), round(median_mol_size_filt, 1)],
+        ["Mean number of reads per molecule", "",
+        round(mean_nb_read_per_mol, 1),
+        round(mean_nb_read_per_mol_filt, 1)],
+        ["Median number of reads per molecule", "",
+        round(median_nb_read_per_mol, 1),
+        round(median_nb_read_per_mol_filt, 1)],
+        ["Mean number of molecules per barcode", "",
+        round(mean_nb_mol_per_bc, 1),
+        round(mean_nb_mol_per_bc_filtmol, 1)],
+        ["Median number of molecules per barcode", "",
+        round(median_nb_mol_per_bc, 1),
+        round(median_nb_mol_per_bc_filtmol, 1)],
+        ["Read depth per molecule", "",
+        round(moy_reads_mol_covs, 1),
+        round(moy_reads_molfilt_covs, 1)],
+        ["Molecule depth per genome", "",
+        round(coverage_mol_genome, 1),
+        round(coverage_molfilt_genome, 1)],
+    ]
 
+    # Création du DataFrame
+    df = pd.DataFrame(
+        data,
+        columns=["Metric", "Raw data", "Creating molecules no filtering", "Creating molecules with more than 3 reads"]
+    )
 
-### OUTPUT TABLE 
-
-    # Créer les données sous forme de dictionnaire
-    data = {
-        "Parameters": [
-            "Number of reads",
-            "Number of reads unmapped ",
-            "Number of barcodes",
-            "Read depth by genome",
-            "Median number of reads per barcode pre-deconvolution",
-            "Mean number of reads per barcode pre-deconvolution",
-            "Number of barcodes post deconvolution",
-            "Number of molecules total",
-            "Number of molecules with less 3 reads",
-            "Number of reads not count",
-            "Number of reads post deconvolution",
-            "Mean of molecule size",
-            "Median of molecule size",
-            "Mean number of reads per barcode post-deconvolution",
-            "Median number of reads per barcode post-deconvolution",
-            "Mean number of reads per molecule",
-            "Median number of reads per molecule",
-            "Mean number of molecule per barcode",
-            "Median number of molecule per barcode",
-            "Read depth by molecule",
-            "Molecule depth by genome"
-        ],
-        "Values": [
-            nb_read,
-            nb_unmap,
-            len(dico_Barcode),
-            coverage_read_genome,
-            mean_nb_read_per_bc,
-            median_nb_read_per_bc,
-            f"{len(list_nb_read_bc_postD)} ({per_bc_lost}% of barcodes lost)",
-            len(dico_mol),
-            not_mol,
-            f"{nb_reads_lost} ({per_read_lost}% of reads)",
-            (nb_read - nb_reads_lost),
-            mean_mol_size,
-            median_mol_size,
-            mean_nb_read_per_bc_postD,
-            median_nb_read_per_bc_postD,
-            mean_nb_read_per_mol,
-            median_nb_read_per_mol,
-            mean_nb_mol_per_bc,
-            median_nb_mol_per_bc,
-            moy_reads_mol_covs,
-            coverage_mol_genome
-        ]
-    }
-
-    # Créer un DataFrame pandas
-    df = pd.DataFrame(data)
-
-    # Sauvegarder le DataFrame au format CSV
+    # Sauvegarde en CSV
     df.to_csv(out_table, index=False)
-
-    # Afficher le DataFrame pour vérifier
-    
     print(f"The table have been saved as '{out_table}'")
 
 

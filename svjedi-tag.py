@@ -57,7 +57,17 @@ def main(args):
         "--reads", 
         metavar="<queryReads>", 
         type=str, 
-        required=True)
+        required=False,
+        default=None)
+    
+    parser.add_argument( 
+        "-qf", 
+        "--reads_files", 
+        metavar="<queryReadsFiles>", 
+        type=str, 
+        required=False, 
+        nargs="+", 
+        default= None)
 
     parser.add_argument(
         "-p", 
@@ -99,12 +109,25 @@ def main(args):
     inVCF = args.vcf
     inREF = args.ref
     inFQ = args.reads
+    inFQS = args.reads_files
     outPrefix = args.prefix
     threads = args.threads
     regionSize = args.regionSize
 
     script_path = os.path.abspath(__file__)
     script_dir = os.path.dirname(script_path)
+
+    if inFQ == None and inFQS == None : 
+        print("WARNING: Reads file requiered. Options : -q <Unique fastq file> or -qf <fastq file R1> <fastq file R2> ")
+        exit()
+    elif inFQ != None : 
+        multifile = False
+    elif inFQS != None :
+        multifile = True
+        inFQR1 =inFQS[0]
+        inFQR2 = inFQS[1]
+        print(inFQR1, inFQR1)
+
 
     if args.gaf or args.gfa :
         if not args.gaf : 
@@ -143,7 +166,11 @@ def main(args):
         outMIN = outPrefix + ".min"
         outDIST = outPrefix + ".dist"
         outGAF = outPrefix + "_vgGiraffe.gaf"
-        c4 = "vg giraffe -t {} -Z {} -m {} -d {} -f {} -i -o gaf --named-coordinates > {}".format(threads, outGBZ, outMIN, outDIST, inFQ, outGAF)
+
+        if multifile == False :
+            c4 = "vg giraffe -t {} -Z {} -m {} -d {} -f {} -i -o gaf --named-coordinates > {}".format(threads, outGBZ, outMIN, outDIST, inFQ, outGAF)
+        else :
+            c4 = "vg giraffe -t {} -Z {} -m {} -d {} -f {} -f {} -o gaf --named-coordinates > {}".format(threads, outGBZ, outMIN, outDIST, inFQR1, inFQR2, outGAF)
         subprocess.run(c4, shell=True, check=True)
 
         #### Analyze barcode signal & Genotype.

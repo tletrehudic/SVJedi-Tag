@@ -246,13 +246,23 @@ def main(args):
                     
                     # Estimate the genotype: on #alns with only alns of barcodes specific to one allele.
                     nbBarc_support_alleles, nbAlns_support_alleles = getSupportBarcodes(adjLeft_barcodesDict, adjRight_barcodesDict, nodeSVbegin_barcodesDict, nodeSVend_barcodesDict)
-                    result_GT, allelic_frequency_allele1 = genotype(nbAlns_support_alleles)
-                    
+                    #result_GT, allelic_frequency_allele1 = genotype(nbAlns_support_alleles)
+
+                    #Error probability for likelihood (according to inversion length)
+                    high, medium, low = 100000, 50000, 25000
+                    if int(sv.length) > high : error_proba = 0.1
+                    elif int(sv.length) < high and int(sv.length) > medium  : error_proba = 0.1
+                    elif int(sv.length) < medium and int(sv.length) > low  : error_proba = 0.1
+                    elif int(sv.length) < low  : error_proba = 0.1
+
+                    result_GT, likelihoods = genotype(nbAlns_support_alleles, error_proba)
+                                    
                     # Get statistics.
                     nbBarc_total, nbAlns_total, nbBarc_adjLeft, nbBarc_adjRight, nbBarc_nodeSVbegin, nbBarc_nodeSVend, nbAlns_adjLeft, nbAlns_adjRight, nbAlns_nodeSVbegin, nbAlns_nodeSVend = get_statistics(nbBarc_support_alleles, nbAlns_support_alleles, adjLeft_barcodesDict, adjRight_barcodesDict, nodeSVbegin_barcodesDict, nodeSVend_barcodesDict)
 
                     # Write the analysis results to the 'analysisFile'.
-                    analysisFile.write("\t".join([str(sv.id), "3", str(result_GT), str(allelic_frequency_allele1), str(nbBarc_total), str(nbAlns_total), str(nbBarc_support_alleles[0]), str(nbBarc_support_alleles[1]), str(nbBarc_support_alleles[2]), str(nbAlns_support_alleles[0]), str(nbAlns_support_alleles[1]), str(nbAlns_support_alleles[2]), str(nbBarc_adjLeft), str(nbBarc_adjRight), str(nbBarc_nodeSVbegin), str(nbBarc_nodeSVend), str(nbAlns_adjLeft), str(nbAlns_adjRight), str(nbAlns_nodeSVbegin), str(nbAlns_nodeSVend)])+"\n")
+                    #analysisFile.write("\t".join([str(sv.id), "3", str(result_GT), str(allelic_frequency_allele1), str(nbBarc_total), str(nbAlns_total), str(nbBarc_support_alleles[0]), str(nbBarc_support_alleles[1]), str(nbBarc_support_alleles[2]), str(nbAlns_support_alleles[0]), str(nbAlns_support_alleles[1]), str(nbAlns_support_alleles[2]), str(nbBarc_adjLeft), str(nbBarc_adjRight), str(nbBarc_nodeSVbegin), str(nbBarc_nodeSVend), str(nbAlns_adjLeft), str(nbAlns_adjRight), str(nbAlns_nodeSVbegin), str(nbAlns_nodeSVend)])+"\n")
+                    analysisFile.write("\t".join([str(sv.id), "3", str(result_GT), str("TODO"), str(nbBarc_total), str(nbAlns_total), str(nbBarc_support_alleles[0]), str(nbBarc_support_alleles[1]), str(nbBarc_support_alleles[2]), str(nbAlns_support_alleles[0]), str(nbAlns_support_alleles[1]), str(nbAlns_support_alleles[2]), str(nbBarc_adjLeft), str(nbBarc_adjRight), str(nbBarc_nodeSVbegin), str(nbBarc_nodeSVend), str(nbAlns_adjLeft), str(nbAlns_adjRight), str(nbAlns_nodeSVbegin), str(nbAlns_nodeSVend)])+"\n")
 
                     # Output the genotype in the output VCF file.
                     numbers = ",".join(str(y) for y in nbAlns_support_alleles)
@@ -268,7 +278,12 @@ def main(args):
                             + ":"
                             + str(numbers)
                             + ":"
-                            + str(allelic_frequency_allele1)
+                            + str(round(likelihoods[0],3) if likelihoods[0] is not None else 'NA')
+                            + ","
+                            + str(round(likelihoods[1],3) if likelihoods[1] is not None else 'NA')
+                            + ","
+                            + str(round(likelihoods[2],3) if likelihoods[2] is not None else 'NA')
+                            #+ str(allelic_frequency_allele1)
                         )
                         outVCF.write(new_line + "\n")
                     else:
@@ -284,7 +299,12 @@ def main(args):
                             + ":"
                             + str(numbers)
                             + ":"
-                            + str(allelic_frequency_allele1)
+                            + str(round(likelihoods[0],3) if likelihoods[0] is not None else 'NA')
+                            + ","
+                            + str(round(likelihoods[1],3) if likelihoods[1] is not None else 'NA')
+                            + ","
+                            + str(round(likelihoods[2],3) if likelihoods[2] is not None else 'NA')
+                            #+ str(allelic_frequency_allele1)
                         )
                         outVCF.write(new_line + "\n")
 
@@ -487,24 +507,61 @@ def extract_nodes(path):
     
     return list_way_node
 
-def genotype(nbAlnBarc_support_alleles):
-    """Method to return the genotype of the SV using the 'allelic_frequency'"""
 
-	# Allelic frequency.
-	####################
-    if nbAlnBarc_support_alleles[0] == 0 and nbAlnBarc_support_alleles[1] == 0 :
-        result_GT = './.'
-        allelic_frequency_allele1 = "NA"    
+# def genotype(nbAlnBarc_support_alleles):
+#     """Method to return the genotype of the SV using the 'allelic_frequency'"""
+
+# 	# Allelic frequency.
+# 	####################
+#     if nbAlnBarc_support_alleles[0] == 0 and nbAlnBarc_support_alleles[1] == 0 :
+#         result_GT = './.'
+#         allelic_frequency_allele1 = "NA"    
+#     else :
+#         allelic_frequency_allele1 = nbAlnBarc_support_alleles[1] / (nbAlnBarc_support_alleles[0] + nbAlnBarc_support_alleles[1])
+#         if allelic_frequency_allele1 >= 0.8:	# allelic_frequency_allele1 close to 1 --> supports allele 1.
+#             result_GT = "1/1"
+#         elif allelic_frequency_allele1 <= 0.2:	# allelic_frequency_allele1 close to 0 --> supports allele 0.
+#             result_GT = "0/0"
+#         else:                                   # allelic_frequency_allele1 close to 0.5 --> supports both alleles (heterozygous).
+#             result_GT = "0/1"
+
+#     return result_GT, allelic_frequency_allele1
+
+def genotype(nbAlnBarc_support_alleles, e):
+    """Method to return the genotype of the SV using the genotype likelihood"""
+    c1 = nbAlnBarc_support_alleles[0] #number of alignement supporting reference allele
+    c2 = nbAlnBarc_support_alleles[1] #number of alignement supporting alternative allele
+
+    if c1+c2 > 9 : #Filter to have minimum of 10 informatifs alignement
+
+        #Likelihood 
+        lik0 = Decimal(c1*math.log10(1-e)) + Decimal(c2*math.log10(e)) # 0/0
+        lik1 = Decimal((c1+c2)*math.log10(1/2)) # 0/1
+        lik2 = Decimal(c2*math.log10(1-e)) + Decimal(c1*math.log10(e)) #1/1
+        L = [lik0, lik1, lik2]
+        index_of_L_max = [i for i, x in enumerate(L) if x == max(L)]
+
+        if len(index_of_L_max) == 1:
+            geno_not_encoded = str(index_of_L_max[0])
+            geno = encode_genotype(geno_not_encoded)
+        else : geno = './.'
+
     else :
-        allelic_frequency_allele1 = nbAlnBarc_support_alleles[1] / (nbAlnBarc_support_alleles[0] + nbAlnBarc_support_alleles[1])
-        if allelic_frequency_allele1 >= 0.8:	# allelic_frequency_allele1 close to 1 --> supports allele 1.
-            result_GT = "1/1"
-        elif allelic_frequency_allele1 <= 0.2:	# allelic_frequency_allele1 close to 0 --> supports allele 0.
-            result_GT = "0/0"
-        else:                                   # allelic_frequency_allele1 close to 0.5 --> supports both alleles (heterozygous).
-            result_GT = "0/1"
+        geno = './.'
+        lik0, lik1, lik2 = [None, None, None]
 
-    return result_GT, allelic_frequency_allele1
+    out = [-lik0, -lik1, -lik2] if any(x is not None for x in [lik0, lik1, lik2]) else [lik0, lik1, lik2]
+
+    return geno, out
+
+
+def encode_genotype(g): 
+    ''' Encode genotype from 0, 1, 2 to 0/0, 0/1, 1/1 '''
+    if g == '0': genotype = "0/0"
+    elif g == '1': genotype = "0/1"
+    elif g == '2': genotype = "1/1"
+    elif g == './.': genotype = "./."
+    return genotype
 
 
 def cleanBarcodes(sv_object):
