@@ -1,0 +1,18 @@
+# Extensions bioinfo (Données lourdes)
+*.fasta
+*.fastq
+*.fq
+*.vcf
+*.gfa
+*.gaf
+*.bam
+*.sam
+
+# Dossiers de travail
+data/
+results/
+logs/
+
+# Systeme et Python
+__pycache__/
+.DS_Store
