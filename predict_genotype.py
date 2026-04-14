@@ -463,14 +463,9 @@ def clean_region(region):
 
 def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
     ''' Function to switch to the expected format from dico_region post DFS '''
-    for node in region_dico.keys():
-        if node not in gfaNode2svRegionsDict.keys():
-            gfaNode2svRegionsDict[node] = []
-
-        node_lenght = length_node(node) 
-        if len(region_dico[node]) > 1 :
-            for i in range(2):
-                coords = region_dico[node][i][1]
+    for node,list_piece in region_dico.items():
+            for piece in list_piece:
+                cut,coords = piece
                 if region_type == "adjLeft":
                     sv.adjLeft = sv.getAdjLeft(coords,node)
                 elif region_type == "adjRight":
@@ -480,19 +475,8 @@ def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
                 elif region_type == "nodeSVend":
                     sv.nodeSVend = sv.getNodeSVend(coords,node)
 
+                node_lenght = length_node(node)
                 gfaNode2svRegionsDict[node].append((sv, region_type,coords,node_lenght))
-        else :
-            coords = region_dico[node][0][1]
-            if region_type == "adjLeft":
-                sv.adjLeft = sv.getAdjLeft(coords,node)
-            elif region_type == "adjRight":
-                sv.adjRight = sv.getAdjRight(coords,node)
-            elif region_type == "nodeSVbegin":
-                sv.nodeSVbegin = sv.getNodeSVbegin(coords,node)
-            elif region_type == "nodeSVend":
-                sv.nodeSVend = sv.getNodeSVend(coords,node)
-
-            gfaNode2svRegionsDict[node].append((sv, region_type,coords,node_lenght))
 
      
 def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict):
