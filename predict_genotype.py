@@ -722,7 +722,11 @@ def get_statistics(nbBarc_support_alleles, nbAlns_support_alleles, adjLeft_barco
 
     return nbBarc_total, nbAlns_total, nbBarc_adjLeft, nbBarc_adjRight, nbBarc_nodeSVbegin, nbBarc_nodeSVend, nbAlns_adjLeft, nbAlns_adjRight, nbAlns_nodeSVbegin, nbAlns_nodeSVend #, minOccPerBarcode_adjLeft, minOccPerBarcode_adjRight, minOccPerBarcode_nodeSVbegin, minOccPerBarcode_nodeSVend, maxOccPerBarcode_adjLeft, maxOccPerBarcode_adjRight, maxOccPerBarcode_nodeSVbegin, maxOccPerBarcode_nodeSVend, meanOccPerBarcode_adjLeft, meanOccPerBarcode_adjRight, meanOccPerBarcode_nodeSVbegin, meanOccPerBarcode_nodeSVend, medianOccPerBarcode_adjLeft, medianOccPerBarcode_adjRight, medianOccPerBarcode_nodeSVbegin, medianOccPerBarcode_nodeSVend
  
-
+def local_pos(path, pos_start, pos_end):
+    length_last_node = length_node(path[-1])
+    length_total = sum(length_node(node)for node in path)
+    local_end = length_last_node - (length_total-(pos_start+pos_end))
+    return local_end
 
 ##############################################
 if __name__ == "__main__":
