@@ -519,9 +519,18 @@ def extract_nodes(path):
 
     node = [node for node in re.split(r'[<>]', path) if node]
     
+    
     list_way_node.append((way_ALN, node))    
     
     return list_way_node
+
+# def extract_nodes(path):       
+#     """Method to extract the nodes contained in a path from an alignment GAF file."""                                        
+#     list_way_node = []
+    
+#     nodes = [node for node in re.split(r'[<>]', path) if node]
+#     nodes_sens = ["forward" if c == ">" else "backward" for c in re.findall(r'[><]', path)]
+#     return list(zip(nodes_sens,nodes))
 
 
 # def genotype(nbAlnBarc_support_alleles):
