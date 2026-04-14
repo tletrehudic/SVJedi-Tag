@@ -316,14 +316,14 @@ def main(args):
 # Functions.
 #############
 
-def create_region(sv, node, orientation, region_size, region_type, gfaNode2svRegionsDict, gfa_graph):
+def create_region(sv, node, orientation, region_size, region_type, gfaNode2svRegionsDict, gfa_graph, region_start):
     ''' Function to create regions based on node size and set region size '''
 
     # If the node is smaller than the set region size, then create the region using a deep graph traversal
-    if length_node(node) < region_size :
+    if length_node(node) < (region_size + region_start) :
         if region_type == 'nodeSVbegin' or region_type == 'nodeSVend' :
-            if region_size > int(sv.length / 2):
-                regionSize_nodeSV = int(sv.length / 2)
+            if (region_size + region_start) > int(sv.length / 2):
+                regionSize_nodeSV = int(sv.length / 2) - region_start
                 dico_dfs_region = createRegion_DFS(node,orientation,regionSize_nodeSV,gfa_graph)
             else :
                 dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph)
