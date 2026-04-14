@@ -36,6 +36,7 @@ from decimal import Decimal
 
 from pgGraphs.graph import Graph
 from collections import deque
+from collections import defaultdict
 from pgGraphs.abstractions import Orientation
 
 #pylint: disable=line-too-long, disable=trailing-whitespace, disable=too-many-function-args
@@ -169,47 +170,79 @@ def main(args):
             #3. Get a set of SV regions where at least one vgNode of the path belongs to.
             #############################################################################
             
-            list_way_node = extract_nodes(path)           
-            for way, node in list_way_node:
-                if way == "forward" :
-                    if node[0] in gfaNode2svRegionsDict.keys() :
-                        list_of_sv_regiontype_coords = gfaNode2svRegionsDict[node[0]]            
-                    else :
+            way, nodes = extract_nodes(path)
+            #wayS, nodeS = extract_nodes(path)[0]
+            #wayE, nodeE = extract_nodes(path)[-1]
+
+
+            if len(nodes) == 1:
+                node = nodes[0]
+                #node = nodeS
+                #way = wayS
+                list_of_sv_regiontype_coords = gfaNode2svRegionsDict.get(node)
+                if list_of_sv_regiontype_coords is None:
+                    continue
+
+                for sv_regiontype_coords in list_of_sv_regiontype_coords:
+                    sv, region_type, coords_region, node_length = sv_regiontype_coords
+
+                    if way == "backward":
+                        p_start, p_end = pos_start, pos_end
+                        pos_start = int(node_length) - int(p_end)
+                        pos_end = int(node_length) - int(p_start)
+
+                    if int(coords_region[0]) < int(pos_start) and int(coords_region[1]) > int(pos_end):
+                        if region_type == "adjLeft":
+                            sv.adjLeft.addBarcode(barcodeID)
+                        elif region_type == "adjRight":
+                            sv.adjRight.addBarcode(barcodeID)
+                        elif region_type == "nodeSVbegin":
+                            sv.nodeSVbegin.addBarcode(barcodeID)
+                        elif region_type == "nodeSVend":
+                            sv.nodeSVend.addBarcode(barcodeID)
+
+            else:
+            
+                local_end_pos = local_pos(path, pos_start, pos_end)
+                regions_compteur = defaultdict(int)
+
+                if way == "forward":
+                    node_start = nodes[0]
+                    node_end = nodes[-1]
+                    pos_on_first = pos_start      # position de début sur le premier node
+                    pos_on_last = local_end_pos   # position de fin sur le dernier node
+
+                else:  # backward
+                    node_start = nodes[-1]        # le read commence sur le dernier node du path
+                    node_end = nodes[0]           # le read finit sur le premier node du path
+                    pos_on_first = local_end_pos  # position de début sur le dernier node (inversé)
+                    pos_on_last = pos_start       # position de fin sur le premier node (inversé)
+
+                for i, (node, pos) in enumerate([(node_start, pos_on_first), (node_end, pos_on_last)]):
+                    list_of_sv_regiontype_coords = gfaNode2svRegionsDict.get(node)
+                    if list_of_sv_regiontype_coords is None:
                         continue
 
-                    for sv_regiontype_coords in list_of_sv_regiontype_coords :
+                    for sv_regiontype_coords in list_of_sv_regiontype_coords:
                         sv, region_type, coords_region, node_length = sv_regiontype_coords
-                        if ((int(coords_region[0])< int(pos_start)) and (int(coords_region[1]) > int(pos_end))) :
 
-                            if region_type == "adjLeft" :
-                                sv.adjLeft.addBarcode(barcodeID)
-                            elif region_type == "adjRight":
-                                sv.adjRight.addBarcode(barcodeID)
-                            elif region_type == "nodeSVbegin" :
-                                sv.nodeSVbegin.addBarcode(barcodeID)
-                            elif region_type == "nodeSVend" :
-                                sv.nodeSVend.addBarcode(barcodeID)
+                        if i == 0 and int(coords_region[0]) < int(pos):
+                            regions_compteur[sv_regiontype_coords] += 1
 
-                elif way == "backward" :
-                    if node[0] in gfaNode2svRegionsDict.keys() :
-                        list_of_sv_regiontype_coords = gfaNode2svRegionsDict[node[0]]
-                    else :
-                        continue
-                    for sv_regiontype_coords in list_of_sv_regiontype_coords :
+                        if i == 1 and int(coords_region[1]) > int(pos):
+                            regions_compteur[sv_regiontype_coords] += 1
+
+                for sv_regiontype_coords, compteur in regions_compteur.items():
+                    if compteur == 2:
                         sv, region_type, coords_region, node_length = sv_regiontype_coords
-                        start_aln = int(node_length)-int(pos_start)
-                        end_aln = int(node_length)-int(pos_end)
-                        #Comme on est en backward, l'annotation et comme si le 0 est la fin du noeud
-                        if ((int(coords_region[0])< int(end_aln)) and (int(coords_region[1]) > int(start_aln))) :
-                            #Comme on est en backward start et end inverse
-                            if region_type == "adjLeft" :
-                                sv.adjLeft.addBarcode(barcodeID)
-                            elif region_type == "adjRight":
-                                sv.adjRight.addBarcode(barcodeID)
-                            elif region_type == "nodeSVbegin" :
-                                sv.nodeSVbegin.addBarcode(barcodeID)
-                            elif region_type == "nodeSVend" :
-                                sv.nodeSVend.addBarcode(barcodeID)
+                        if region_type == "adjLeft":
+                            sv.adjLeft.addBarcode(barcodeID)
+                        elif region_type == "adjRight":
+                            sv.adjRight.addBarcode(barcodeID)
+                        elif region_type == "nodeSVbegin":
+                            sv.nodeSVbegin.addBarcode(barcodeID)
+                        elif region_type == "nodeSVend":
+                            sv.nodeSVend.addBarcode(barcodeID)
 
                 # TODO : take into account the information split-reads
 
