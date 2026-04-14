@@ -338,7 +338,7 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
         associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict)
 
 
-def createRegion_DFS(node, orientation, region_size, gfa_graph):
+def createRegion_DFS(node, orientation, region_size, gfa_graph, region_start):
     ''' Function that allows a graph to be traversed in depth to create a region based on a fixed size. '''
 
     visited = {}    # We keep the node and the orientation in which it was traversed as a function of the distance covered to reach this node.
@@ -351,13 +351,10 @@ def createRegion_DFS(node, orientation, region_size, gfa_graph):
 
     while stack:
         node, dist, ori = stack.pop()   # dist = "distance covered to reach this node (i.e. sum of nodes covered to reach it)"
-        dist_path = 0                   # dist_path = "distance covered to reach the "end" of the node (i.e. previous nodes + node size)"
-        visited[f"{node}-{ori}"]=dist
-        dist_path = dist + length_node(node)
+        dist_path = dist + length_node(node) # dist_path = "distance covered to reach the "end" of the node (i.e. previous nodes + node size)"
 
-        if dist_path < region_size :    # Region size = "fixed region size"
-            region[node] = []
-            region[node].append(('Full',[0,length_node(node)]))
+
+        if dist_path < region_size+region_start:    # Region size = "fixed region size"
 
             for info_succ in gfa_graph.segments[node]["out"][ori] : # gfa_graph.segments[node]["out"][ori] -> returns the successor nodes (with outgoing edges) of the node of interest, as well as their direction of entry into the node.
                 succ = info_succ[0]
@@ -372,16 +369,37 @@ def createRegion_DFS(node, orientation, region_size, gfa_graph):
                     stack.append((succ,dist_path,ori_succ)) 
                     visited[f"{succ}-{ori_succ}"] = dist_path
 
-        elif dist_path > region_size :  # If we reach a size larger than the set region size, we take the part of the node that allows us to reach the set size, according to its reading direction.
+            if dist > region_start:
+                region[node] = []
+                region[node].append(('Full',[0,length_node(node)]))
+
+            elif dist < region_start and dist_path > region_start:
+                if ori ==  Orientation.FORWARD:
+                    region[node].append(('CutF',[region_start,length_node(node)]))
+                elif ori == Orientation.REVERSE:
+                    region[node].append(('CutR',[0,length_node(node)-region_start]))
+
+
+        elif dist_path > (region_size + region_start):  # If we reach a size larger than the set region size, we take the part of the node that allows us to reach the set size, according to its reading direction.
             if node not in region.keys():
                 region[node] = []
-            if ori ==  Orientation.FORWARD:
-                region[node].append(('CutF',[0,region_size-dist]))
-            elif ori == Orientation.REVERSE:
-                region[node].append(('CutR',[length_node(node)-(region_size-dist),length_node(node)]))
-        else : #dist_path = region_size
+
+            if dist > region_start :
+                if ori ==  Orientation.FORWARD:
+                    region[node].append(('CutF',[0,(region_size+region_start)-dist]))
+                elif ori == Orientation.REVERSE:
+                    region[node].append(('CutR',[length_node(node)-(region_size+region_start-dist),length_node(node)]))
+            
+            elif dist < region_start:
+                if ori ==  Orientation.FORWARD:
+                    region[node].append(('CutBF',[region_start,(region_size+region_start)-dist]))
+                elif ori == Orientation.REVERSE:
+                    region[node].append(('CutBR',[length_node(node)-(region_size+region_start-dist),region_size-dist_path]))
+    
+        else : #dist_path = region_size+size adapt
             region[node] = []
-            region[node].append(('Full',[0,region_size-dist]))
+            region[node].append(('Full',[0,region_size+region_start-dist]))
+
     return region
 
 
