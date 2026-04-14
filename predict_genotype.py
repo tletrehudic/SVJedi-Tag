@@ -113,7 +113,7 @@ def main(args):
     gfa_graph.compute_orientations()
 
     svsDict = {}
-    gfaNode2svRegionsDict = {}
+    gfaNode2svRegionsDict = defaultdict(list)
     for chr, chrObject in chromDict.items() :
         for sv in chrObject.svs:
 
