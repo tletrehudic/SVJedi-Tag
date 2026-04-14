@@ -413,26 +413,52 @@ def length_node(node):
 
 def clean_region(region):
     ''' Function that processes nodes where several regions read in both orientations are present and checks that the regions do not overlap. '''
-    for node in region.keys():
-        if len(region[node]) > 1 :
-            #print(region, "\n")
-            size_forward = 0
-            size_reverse = 0
-            for i in range(2):
-                if region[node][i][0] == "CutF" :
-                    if size_forward < region[node][i][1][1] - region[node][i][1][0] :
-                        size_forward = region[node][i][1][1] - region[node][i][1][0]
-                if region[node][i][0] == "CutR" :
-                    if size_reverse < region[node][i][1][1] - region[node][i][1][0] :
-                        size_reverse = region[node][i][1][1] - region[node][i][1][0]
+    for node,list_piece in region.items():
 
-            if (size_forward + size_reverse) >= length_node(node) :
-                region[node]=[('Full',[0,length_node(node)])]
+        if len(list_piece) == 1:
+            continue
+        if any(cut == "Full" for cut,coord in list_piece):
+            region[node]=[('Full',[0,length_node(node)])]
+            continue
 
-            if size_reverse == 0 :
-                region[node]=[('CutF',[0,size_forward])]
-            elif size_forward == 0 :
-                region[node]=[('CutR',[0,size_reverse])]
+        size_forward = 0
+        size_reverse = 0
+        # list_cutBF = []
+        # list_cutBR = []
+
+        for piece in list_piece:
+            cut,coord = piece
+
+            if cut == "CutF" :
+                size_forward = max(size_forward,coord[1]-coord[0])
+            elif cut == "CutR" :
+                size_reverse = max(size_reverse,coord[1]-coord[0])
+            # elif cut == "CutBF":
+            #     list_cutBF.append(coord)
+            # elif cut == "CutBR":
+            #     list_cutBR.append(coord)
+
+        #TODO : regarder les nodes couper aux é extrimités
+        # for coord in sorted(list_cutBF):
+        #     if coord[0] <= size_forward and coord[1] > size_forward:
+        #         size_forward = coord[1]
+
+        # for coord in sorted(list_cutBR):
+        #     if coord[0] <= size_reverse and coord[1] > size_reverse:
+        #         size_reverse = coord[1]
+            
+            
+        if (size_forward + size_reverse) >= length_node(node) :
+            region[node]=[('Full',[0,length_node(node)])]
+
+        if size_reverse == 0 :
+            region[node]=[('CutF',[0,size_forward])]
+
+        elif size_forward == 0 :
+            region[node]=[('CutR',[0,size_reverse])]
+
+        else:
+            region[node]=[('CutF',[0,size_forward]),('CutR',[0,size_reverse])]
     return region
 
 def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
