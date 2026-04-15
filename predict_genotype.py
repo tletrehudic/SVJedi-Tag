@@ -365,18 +365,18 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
         if region_type == 'nodeSVbegin' or region_type == 'nodeSVend' :
             if (region_size + region_start) > int(sv.length / 2):
                 regionSize_nodeSV = int(sv.length / 2) - region_start
-                dico_dfs_region = createRegion_DFS(node,orientation,regionSize_nodeSV,gfa_graph)
+                dico_dfs_region = createRegion_DFS(node,orientation,regionSize_nodeSV,gfa_graph,region_start)
             else :
-                dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph)
+                dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph,region_start)
         else :
-            dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph)
+            dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph,region_start)
         
         dico_dfs_region = clean_region(dico_dfs_region)
         format_region(sv,dico_dfs_region,region_type,gfaNode2svRegionsDict)
 
     # Otherwise create a region on the node
     else :
-        associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict)
+        associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict,region_start)
 
 
 def createRegion_DFS(node, orientation, region_size, gfa_graph, region_start):
