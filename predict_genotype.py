@@ -81,6 +81,13 @@ def main(args):
         metavar="<regionSize>",
         type=int,
         required=True)
+    
+    parser.add_argument(
+        "-rs",
+        "--regionStart",
+        metavar="<regionSize>",
+        type=int,
+        required=True)
 
     parser.add_argument(
         "-o", 
@@ -96,6 +103,7 @@ def main(args):
     inputGAF = args.gaf[0]
     inputVCF = args.vcf[0]
     regionSize = args.regionSize
+    regionStart = args.regionStart
     outputVCF = args.output[0]
 
 
@@ -121,16 +129,16 @@ def main(args):
             # If the node is smaller than the set region size, then it is created using a deep graph traversal.
 
             ## adjLeft.
-            create_region(sv,  sv.gfaNodes[0], Orientation.REVERSE ,regionSize, "adjLeft", gfaNode2svRegionsDict, gfa_graph)              
+            create_region(sv,  sv.gfaNodes[0], Orientation.REVERSE ,regionSize, "adjLeft", gfaNode2svRegionsDict, gfa_graph, regionStart)              
 
             ## adjRight.
-            create_region(sv,  sv.gfaNodes[-1], Orientation.FORWARD ,regionSize, "adjRight", gfaNode2svRegionsDict, gfa_graph)
+            create_region(sv,  sv.gfaNodes[-1], Orientation.FORWARD ,regionSize, "adjRight", gfaNode2svRegionsDict, gfa_graph, regionStart)
             
             ## nodeSVbegin.
-            create_region(sv,  sv.gfaNodes[1], Orientation.FORWARD ,regionSize, "nodeSVbegin", gfaNode2svRegionsDict,gfa_graph)
+            create_region(sv,  sv.gfaNodes[1], Orientation.FORWARD ,regionSize, "nodeSVbegin", gfaNode2svRegionsDict,gfa_graph, regionStart)
 
             ## nodeSVend.
-            create_region(sv,  sv.gfaNodes[-2], Orientation.REVERSE ,regionSize, "nodeSVend", gfaNode2svRegionsDict, gfa_graph)
+            create_region(sv,  sv.gfaNodes[-2], Orientation.REVERSE ,regionSize, "nodeSVend", gfaNode2svRegionsDict, gfa_graph, regionStart)
 
             svsDict[sv.id] = sv
 

@@ -90,6 +90,14 @@ def main(args):
         type=int,
         required=False,
         default=10000)
+    
+    parser.add_argument(
+        "-rs",
+        "--regionStart",
+        metavar="<regionStart (default 0)>",
+        type=int,
+        required=False,
+        default=0)
 
     parser.add_argument(
         "-a", 
@@ -113,6 +121,7 @@ def main(args):
     outPrefix = args.prefix
     threads = args.threads
     regionSize = args.regionSize
+    regionStart = args.regionStart
 
     script_path = os.path.abspath(__file__)
     script_dir = os.path.dirname(script_path)
