@@ -163,7 +163,7 @@ def main(args):
         ### Map linked-reads on graph.
         print ("### Map linked-reads on graph ###")
         outGBZ = outPrefix + ".giraffe.gbz"
-        outMIN = outPrefix + ".min"
+        outMIN = outPrefix + ".shortread.withzip.min"
         outDIST = outPrefix + ".dist"
         outGAF = outPrefix + "_vgGiraffe.gaf"
 
