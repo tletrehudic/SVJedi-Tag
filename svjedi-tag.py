@@ -154,7 +154,7 @@ def main(args):
             #### Analyze barcode signal & Genotype.
             print("### Analyze barcode signal & Genotype ###")
             outVCF = outPrefix + "_genotype.vcf"
-            c6 = "python3 {}/predict_genotype.py -a {} -v {} -o {} -s {} -g {}".format(script_dir, outGAF, inVCF, outVCF,regionSize, outGFA)
+            c6 = "python3 {}/predict_genotype.py -a {} -v {} -o {} -s {} -g {} -rs {}".format(script_dir, outGAF, inVCF, outVCF,regionSize, outGFA, regionStart)
             subprocess.run(c6, shell=True, check=True)
         
     else:
@@ -175,22 +175,23 @@ def main(args):
         outMIN = outPrefix + ".shortread.withzip.min"
         outDIST = outPrefix + ".dist"
         outGAF = outPrefix + "_vgGiraffe.gaf"
+        outZIP = outPrefix + ".shortread.zipcodes"
 
         if multifile == False :
-            c4 = "vg giraffe -t {} -Z {} -m {} -d {} -f {} -i -o gaf --named-coordinates > {}".format(threads, outGBZ, outMIN, outDIST, inFQ, outGAF)
+            c4 = "vg giraffe -t {} -Z {} -m {} -z {} -d {} -f {} -i -o gaf --named-coordinates > {}".format(threads, outGBZ, outMIN, outZIP, outDIST, inFQ, outGAF)
         else :
-            c4 = "vg giraffe -t {} -Z {} -m {} -d {} -f {} -f {} -o gaf --named-coordinates > {}".format(threads, outGBZ, outMIN, outDIST, inFQR1, inFQR2, outGAF)
+            c4 = "vg giraffe -t {} -Z {} -m {} -z {} -d {} -f {} -f {} -o gaf --named-coordinates > {}".format(threads, outGBZ, outMIN, outZIP, outDIST, inFQR1, inFQR2, outGAF)
         subprocess.run(c4, shell=True, check=True)
 
         #### Analyze barcode signal & Genotype.
         print("### Analyze barcode signal & Genotype ###")
         outVCF = outPrefix + "_genotype.vcf"
-        c6 = "python3 {}/predict_genotype.py -a {} -v {} -o {} -s {} -g {}".format(script_dir, outGAF, inVCF, outVCF,regionSize, outGFA)
+        c6 = "python3 {}/predict_genotype.py -a {} -v {} -o {} -s {} -g {} -rs {}".format(script_dir, outGAF, inVCF, outVCF,regionSize, outGFA, regionStart)
         subprocess.run(c6, shell=True, check=True)
 
 
 if __name__ == "__main__":
-    if sys.argv == 1:
+    if len(sys.argv) == 1:
         sys.exit("Error: missing arguments")
 
     else:
