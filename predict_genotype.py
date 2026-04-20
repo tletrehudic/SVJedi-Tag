@@ -113,7 +113,7 @@ def main(args):
     gfa_graph.compute_orientations()
 
     svsDict = {}
-    gfaNode2svRegionsDict = {}
+    gfaNode2svRegionsDict = defaultdict(list)
     for chr, chrObject in chromDict.items() :
         for sv in chrObject.svs:
 
@@ -121,16 +121,16 @@ def main(args):
             # If the node is smaller than the set region size, then it is created using a deep graph traversal.
 
             ## adjLeft.
-            create_region(sv,  sv.gfaNodes[0], Orientation.REVERSE ,regionSize, "adjLeft", gfaNode2svRegionsDict, gfa_graph, regionStart)              
+            create_region(sv,  sv.gfaNodes[0], Orientation.REVERSE ,regionSize, "adjLeft", gfaNode2svRegionsDict, gfa_graph)              
 
             ## adjRight.
-            create_region(sv,  sv.gfaNodes[-1], Orientation.FORWARD ,regionSize, "adjRight", gfaNode2svRegionsDict, gfa_graph, regionStart)
+            create_region(sv,  sv.gfaNodes[-1], Orientation.FORWARD ,regionSize, "adjRight", gfaNode2svRegionsDict, gfa_graph)
             
             ## nodeSVbegin.
-            create_region(sv,  sv.gfaNodes[1], Orientation.FORWARD ,regionSize, "nodeSVbegin", gfaNode2svRegionsDict,gfa_graph, regionStart)
+            create_region(sv,  sv.gfaNodes[1], Orientation.FORWARD ,regionSize, "nodeSVbegin", gfaNode2svRegionsDict,gfa_graph)
 
             ## nodeSVend.
-            create_region(sv,  sv.gfaNodes[-2], Orientation.REVERSE ,regionSize, "nodeSVend", gfaNode2svRegionsDict, gfa_graph, regionStart)
+            create_region(sv,  sv.gfaNodes[-2], Orientation.REVERSE ,regionSize, "nodeSVend", gfaNode2svRegionsDict, gfa_graph)
 
             svsDict[sv.id] = sv
 
