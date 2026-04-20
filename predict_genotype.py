@@ -121,7 +121,7 @@ def main(args):
     gfa_graph.compute_orientations()
 
     svsDict = {}
-    gfaNode2svRegionsDict = defaultdict(list)
+    gfaNode2svRegionsDict = {}
     for chr, chrObject in chromDict.items() :
         for sv in chrObject.svs:
 
@@ -178,79 +178,47 @@ def main(args):
             #3. Get a set of SV regions where at least one vgNode of the path belongs to.
             #############################################################################
             
-            way, nodes = extract_nodes(path)
-            #wayS, nodeS = extract_nodes(path)[0]
-            #wayE, nodeE = extract_nodes(path)[-1]
-
-
-            if len(nodes) == 1:
-                node = nodes[0]
-                #node = nodeS
-                #way = wayS
-                list_of_sv_regiontype_coords = gfaNode2svRegionsDict.get(node)
-                if list_of_sv_regiontype_coords is None:
-                    continue
-
-                for sv_regiontype_coords in list_of_sv_regiontype_coords:
-                    sv, region_type, coords_region, node_length = sv_regiontype_coords
-
-                    if way == "backward":
-                        p_start, p_end = pos_start, pos_end
-                        pos_start = int(node_length) - int(p_end)
-                        pos_end = int(node_length) - int(p_start)
-
-                    if int(coords_region[0]) < int(pos_start) and int(coords_region[1]) > int(pos_end):
-                        if region_type == "adjLeft":
-                            sv.adjLeft.addBarcode(barcodeID)
-                        elif region_type == "adjRight":
-                            sv.adjRight.addBarcode(barcodeID)
-                        elif region_type == "nodeSVbegin":
-                            sv.nodeSVbegin.addBarcode(barcodeID)
-                        elif region_type == "nodeSVend":
-                            sv.nodeSVend.addBarcode(barcodeID)
-
-            else:
-            
-                local_end_pos = local_pos(path, pos_start, pos_end)
-                regions_compteur = defaultdict(int)
-
-                if way == "forward":
-                    node_start = nodes[0]
-                    node_end = nodes[-1]
-                    pos_on_first = pos_start      # position de début sur le premier node
-                    pos_on_last = local_end_pos   # position de fin sur le dernier node
-
-                else:  # backward
-                    node_start = nodes[-1]        # le read commence sur le dernier node du path
-                    node_end = nodes[0]           # le read finit sur le premier node du path
-                    pos_on_first = local_end_pos  # position de début sur le dernier node (inversé)
-                    pos_on_last = pos_start       # position de fin sur le premier node (inversé)
-
-                for i, (node, pos) in enumerate([(node_start, pos_on_first), (node_end, pos_on_last)]):
-                    list_of_sv_regiontype_coords = gfaNode2svRegionsDict.get(node)
-                    if list_of_sv_regiontype_coords is None:
+            list_way_node = extract_nodes(path)           
+            for way, node in list_way_node:
+                if way == "forward" :
+                    if node[0] in gfaNode2svRegionsDict.keys() :
+                        list_of_sv_regiontype_coords = gfaNode2svRegionsDict[node[0]]            
+                    else :
                         continue
 
-                    for sv_regiontype_coords in list_of_sv_regiontype_coords:
+                    for sv_regiontype_coords in list_of_sv_regiontype_coords :
                         sv, region_type, coords_region, node_length = sv_regiontype_coords
+                        if ((int(coords_region[0])< int(pos_start)) and (int(coords_region[1]) > int(pos_end))) :
 
-                        if i == 0 and int(coords_region[0]) < int(pos):
-                            regions_compteur[sv_regiontype_coords] += 1
+                            if region_type == "adjLeft" :
+                                sv.adjLeft.addBarcode(barcodeID)
+                            elif region_type == "adjRight":
+                                sv.adjRight.addBarcode(barcodeID)
+                            elif region_type == "nodeSVbegin" :
+                                sv.nodeSVbegin.addBarcode(barcodeID)
+                            elif region_type == "nodeSVend" :
+                                sv.nodeSVend.addBarcode(barcodeID)
 
-                        if i == 1 and int(coords_region[1]) > int(pos):
-                            regions_compteur[sv_regiontype_coords] += 1
-
-                for sv_regiontype_coords, compteur in regions_compteur.items():
-                    if compteur == 2:
+                elif way == "backward" :
+                    if node[0] in gfaNode2svRegionsDict.keys() :
+                        list_of_sv_regiontype_coords = gfaNode2svRegionsDict[node[0]]
+                    else :
+                        continue
+                    for sv_regiontype_coords in list_of_sv_regiontype_coords :
                         sv, region_type, coords_region, node_length = sv_regiontype_coords
-                        if region_type == "adjLeft":
-                            sv.adjLeft.addBarcode(barcodeID)
-                        elif region_type == "adjRight":
-                            sv.adjRight.addBarcode(barcodeID)
-                        elif region_type == "nodeSVbegin":
-                            sv.nodeSVbegin.addBarcode(barcodeID)
-                        elif region_type == "nodeSVend":
-                            sv.nodeSVend.addBarcode(barcodeID)
+                        start_aln = int(node_length)-int(pos_start)
+                        end_aln = int(node_length)-int(pos_end)
+                        #Comme on est en backward, l'annotation et comme si le 0 est la fin du noeud
+                        if ((int(coords_region[0])< int(end_aln)) and (int(coords_region[1]) > int(start_aln))) :
+                            #Comme on est en backward start et end inverse
+                            if region_type == "adjLeft" :
+                                sv.adjLeft.addBarcode(barcodeID)
+                            elif region_type == "adjRight":
+                                sv.adjRight.addBarcode(barcodeID)
+                            elif region_type == "nodeSVbegin" :
+                                sv.nodeSVbegin.addBarcode(barcodeID)
+                            elif region_type == "nodeSVend" :
+                                sv.nodeSVend.addBarcode(barcodeID)
 
                 # TODO : take into account the information split-reads
 
@@ -357,29 +325,29 @@ def main(args):
 # Functions.
 #############
 
-def create_region(sv, node, orientation, region_size, region_type, gfaNode2svRegionsDict, gfa_graph, region_start):
+def create_region(sv, node, orientation, region_size, region_type, gfaNode2svRegionsDict, gfa_graph):
     ''' Function to create regions based on node size and set region size '''
 
     # If the node is smaller than the set region size, then create the region using a deep graph traversal
-    if length_node(node) < (region_size + region_start) :
+    if length_node(node) < region_size :
         if region_type == 'nodeSVbegin' or region_type == 'nodeSVend' :
-            if (region_size + region_start) > int(sv.length / 2):
-                regionSize_nodeSV = int(sv.length / 2) - region_start
-                dico_dfs_region = createRegion_DFS(node,orientation,regionSize_nodeSV,gfa_graph,region_start)
+            if region_size > int(sv.length / 2):
+                regionSize_nodeSV = int(sv.length / 2)
+                dico_dfs_region = createRegion_DFS(node,orientation,regionSize_nodeSV,gfa_graph)
             else :
-                dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph,region_start)
+                dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph)
         else :
-            dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph,region_start)
+            dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph)
         
         dico_dfs_region = clean_region(dico_dfs_region)
         format_region(sv,dico_dfs_region,region_type,gfaNode2svRegionsDict)
 
     # Otherwise create a region on the node
     else :
-        associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict,region_start)
+        associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict)
 
 
-def createRegion_DFS(node, orientation, region_size, gfa_graph, region_start):
+def createRegion_DFS(node, orientation, region_size, gfa_graph):
     ''' Function that allows a graph to be traversed in depth to create a region based on a fixed size. '''
 
     visited = {}    # We keep the node and the orientation in which it was traversed as a function of the distance covered to reach this node.
@@ -392,10 +360,13 @@ def createRegion_DFS(node, orientation, region_size, gfa_graph, region_start):
 
     while stack:
         node, dist, ori = stack.pop()   # dist = "distance covered to reach this node (i.e. sum of nodes covered to reach it)"
-        dist_path = dist + length_node(node) # dist_path = "distance covered to reach the "end" of the node (i.e. previous nodes + node size)"
+        dist_path = 0                   # dist_path = "distance covered to reach the "end" of the node (i.e. previous nodes + node size)"
+        visited[f"{node}-{ori}"]=dist
+        dist_path = dist + length_node(node)
 
-
-        if dist_path < region_size+region_start:    # Region size = "fixed region size"
+        if dist_path < region_size :    # Region size = "fixed region size"
+            region[node] = []
+            region[node].append(('Full',[0,length_node(node)]))
 
             for info_succ in gfa_graph.segments[node]["out"][ori] : # gfa_graph.segments[node]["out"][ori] -> returns the successor nodes (with outgoing edges) of the node of interest, as well as their direction of entry into the node.
                 succ = info_succ[0]
@@ -410,37 +381,16 @@ def createRegion_DFS(node, orientation, region_size, gfa_graph, region_start):
                     stack.append((succ,dist_path,ori_succ)) 
                     visited[f"{succ}-{ori_succ}"] = dist_path
 
-            if dist > region_start:
-                region[node] = []
-                region[node].append(('Full',[0,length_node(node)]))
-
-            elif dist < region_start and dist_path > region_start:
-                if ori ==  Orientation.FORWARD:
-                    region[node].append(('CutF',[region_start,length_node(node)]))
-                elif ori == Orientation.REVERSE:
-                    region[node].append(('CutR',[0,length_node(node)-region_start]))
-
-
-        elif dist_path > (region_size + region_start):  # If we reach a size larger than the set region size, we take the part of the node that allows us to reach the set size, according to its reading direction.
+        elif dist_path > region_size :  # If we reach a size larger than the set region size, we take the part of the node that allows us to reach the set size, according to its reading direction.
             if node not in region.keys():
                 region[node] = []
-
-            if dist > region_start :
-                if ori ==  Orientation.FORWARD:
-                    region[node].append(('CutF',[0,(region_size+region_start)-dist]))
-                elif ori == Orientation.REVERSE:
-                    region[node].append(('CutR',[length_node(node)-(region_size+region_start-dist),length_node(node)]))
-            
-            elif dist < region_start:
-                if ori ==  Orientation.FORWARD:
-                    region[node].append(('CutBF',[region_start,(region_size+region_start)-dist]))
-                elif ori == Orientation.REVERSE:
-                    region[node].append(('CutBR',[length_node(node)-(region_size+region_start-dist),region_size-dist_path]))
-    
-        else : #dist_path = region_size+size adapt
+            if ori ==  Orientation.FORWARD:
+                region[node].append(('CutF',[0,region_size-dist]))
+            elif ori == Orientation.REVERSE:
+                region[node].append(('CutR',[length_node(node)-(region_size-dist),length_node(node)]))
+        else : #dist_path = region_size
             region[node] = []
-            region[node].append(('Full',[0,region_size+region_start-dist]))
-
+            region[node].append(('Full',[0,region_size-dist]))
     return region
 
 
@@ -454,53 +404,28 @@ def length_node(node):
 
 def clean_region(region):
     ''' Function that processes nodes where several regions read in both orientations are present and checks that the regions do not overlap. '''
-    for node,list_piece in region.items():
+    for node in region.keys():
+        if len(region[node]) > 1 :
+            #print(region, "\n")
+            size_forward = 0
+            size_reverse = 0
+            for i in range(2):
+                if region[node][i][0] == "CutF" :
+                    if size_forward < region[node][i][1][1] - region[node][i][1][0] :
+                        size_forward = region[node][i][1][1] - region[node][i][1][0]
+                if region[node][i][0] == "CutR" :
+                    if size_reverse < region[node][i][1][1] - region[node][i][1][0] :
+                        size_reverse = region[node][i][1][1] - region[node][i][1][0]
 
-        if len(list_piece) == 1:
-            continue
-        if any(cut == "Full" for cut,coord in list_piece):
-            region[node]=[('Full',[0,length_node(node)])]
-            continue
+            if (size_forward + size_reverse) >= length_node(node) :
+                region[node]=[('Full',[0,length_node(node)])]
 
-        size_forward = 0
-        size_reverse = 0
-        # list_cutBF = []
-        # list_cutBR = []
-
-        for piece in list_piece:
-            cut,coord = piece
-
-            if cut == "CutF" :
-                size_forward = max(size_forward,coord[1]-coord[0])
-            elif cut == "CutR" :
-                size_reverse = max(size_reverse,coord[1]-coord[0])
-            # elif cut == "CutBF":
-            #     list_cutBF.append(coord)
-            # elif cut == "CutBR":
-            #     list_cutBR.append(coord)
-
-        #TODO : regarder les nodes couper aux é extrimités
-        # for coord in sorted(list_cutBF):
-        #     if coord[0] <= size_forward and coord[1] > size_forward:
-        #         size_forward = coord[1]
-
-        # for coord in sorted(list_cutBR):
-        #     if coord[0] <= size_reverse and coord[1] > size_reverse:
-        #         size_reverse = coord[1]
-            
-            
-        if (size_forward + size_reverse) >= length_node(node) :
-            region[node]=[('Full',[0,length_node(node)])]
-
-        if size_reverse == 0 :
-            region[node]=[('CutF',[0,size_forward])]
-
-        elif size_forward == 0 :
-            region[node]=[('CutR',[0,size_reverse])]
-
-        else:
-            region[node]=[('CutF',[0,size_forward]),('CutR',[0,size_reverse])]
+            if size_reverse == 0 :
+                region[node]=[('CutF',[0,size_forward])]
+            elif size_forward == 0 :
+                region[node]=[('CutR',[0,size_reverse])]
     return region
+            
 
 def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
     ''' Function to switch to the expected format from dico_region post DFS '''
@@ -520,34 +445,46 @@ def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
                 gfaNode2svRegionsDict[node].append((sv, region_type,coords,node_lenght))
 
      
-def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict,region_start):
-    """Method to associate a GFA node to a SV region."""  
-    node_length = length_node(gfaNode)     #'node_start' and 'node_end' are 0-based and incl./excl. resp.
+def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict):
+    """Method to associate a GFA node to a SV region."""
+    
+    node_start = int(str(gfaNode).split(":")[1]) - 1             #positions in 'gfaNode_id' are 1-based and incl.
+    node_end = int(str(gfaNode).split(":")[2])  
+    node_length = (node_end-node_start)     #'node_start' and 'node_end' are 0-based and incl./excl. resp.
     
     # adjLeft.
     if region_type == "adjLeft":
-        coords = [(node_length-(regionSize+region_start)), node_length - region_start]
+        coords = [(node_length-regionSize), node_length]
         sv_object.adjLeft = sv_object.getAdjLeft(coords,gfaNode) 
 
 
     # adjRight.
     elif region_type == "adjRight":
-        coords = [region_start, regionSize+region_start]
+        coords = [0, regionSize]
         sv_object.adjRight = sv_object.getAdjRight(coords,gfaNode)
-    
 
-    # nodeSVbegin
+    # nodeSVbegin.
     elif region_type == "nodeSVbegin":
-        coords = [region_start, regionSize+region_start]
+        if regionSize > int(sv_object.length / 2):
+            regionSize_nodeSV = int(sv_object.length / 2)
+        else:
+            regionSize_nodeSV = regionSize
+        coords = [0, regionSize_nodeSV]
         sv_object.nodeSVbegin = sv_object.getNodeSVbegin(coords,gfaNode)
 
-
-    # nodeSVend
+    # nodeSVend.
     elif region_type == "nodeSVend":
-        coords = [(node_length-(regionSize+region_start)), node_length-region_start]
+        if regionSize > int(sv_object.length / 2):
+            regionSize_nodeSV = int(sv_object.length / 2)
+        else:
+            regionSize_nodeSV = regionSize
+        coords = [(node_length-regionSize_nodeSV), node_length]
         sv_object.nodeSVend = sv_object.getNodeSVend(coords,gfaNode)
 
-    gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
+    if gfaNode not in gfaNode2svRegionsDict:
+        gfaNode2svRegionsDict[gfaNode] = [(sv_object, region_type, coords,node_length)]
+    else:
+        gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
 
 def extract_nodes(path):       
     """Method to extract the nodes contained in a path from an alignment GAF file."""                                        
@@ -560,18 +497,9 @@ def extract_nodes(path):
 
     node = [node for node in re.split(r'[<>]', path) if node]
     
-    
     list_way_node.append((way_ALN, node))    
     
     return list_way_node
-
-# def extract_nodes(path):       
-#     """Method to extract the nodes contained in a path from an alignment GAF file."""                                        
-#     list_way_node = []
-    
-#     nodes = [node for node in re.split(r'[<>]', path) if node]
-#     nodes_sens = ["forward" if c == ">" else "backward" for c in re.findall(r'[><]', path)]
-#     return list(zip(nodes_sens,nodes))
 
 
 # def genotype(nbAlnBarc_support_alleles):
@@ -730,10 +658,18 @@ def get_statistics(nbBarc_support_alleles, nbAlns_support_alleles, adjLeft_barco
 
     return nbBarc_total, nbAlns_total, nbBarc_adjLeft, nbBarc_adjRight, nbBarc_nodeSVbegin, nbBarc_nodeSVend, nbAlns_adjLeft, nbAlns_adjRight, nbAlns_nodeSVbegin, nbAlns_nodeSVend #, minOccPerBarcode_adjLeft, minOccPerBarcode_adjRight, minOccPerBarcode_nodeSVbegin, minOccPerBarcode_nodeSVend, maxOccPerBarcode_adjLeft, maxOccPerBarcode_adjRight, maxOccPerBarcode_nodeSVbegin, maxOccPerBarcode_nodeSVend, meanOccPerBarcode_adjLeft, meanOccPerBarcode_adjRight, meanOccPerBarcode_nodeSVbegin, meanOccPerBarcode_nodeSVend, medianOccPerBarcode_adjLeft, medianOccPerBarcode_adjRight, medianOccPerBarcode_nodeSVbegin, medianOccPerBarcode_nodeSVend
  
+# def local_pos(path, pos_start, pos_end):
+#     length_last_node = length_node(path[-1])
+#     length_total = sum(length_node(node)for node in path)
+#     local_end = length_last_node - (length_total-(pos_start+pos_end))
+#     return local_end
+
 def local_pos(path, pos_start, pos_end):
-    length_last_node = length_node(path[-1])
-    length_total = sum(length_node(node)for node in path)
-    local_end = length_last_node - (length_total-(pos_start+pos_end))
+    node = [node for node in re.split(r'[<>]', path) if node]
+    length_aln = pos_end - pos_start
+    length_first_node_aln = length_node(node[0])-pos_start
+    length_aln_without_first = length_aln - length_first_node_aln
+    local_end = length_aln_without_first - sum(length_node(node) for node in node[1:-1])
     return local_end
 
 ##############################################
