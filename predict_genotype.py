@@ -81,13 +81,6 @@ def main(args):
         metavar="<regionSize>",
         type=int,
         required=True)
-    
-    parser.add_argument(
-        "-rs",
-        "--regionStart",
-        metavar="<regionSize>",
-        type=int,
-        required=True)
 
     parser.add_argument(
         "-o", 
@@ -103,7 +96,6 @@ def main(args):
     inputGAF = args.gaf[0]
     inputVCF = args.vcf[0]
     regionSize = args.regionSize
-    regionStart = args.regionStart
     outputVCF = args.output[0]
 
 
