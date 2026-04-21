@@ -81,6 +81,13 @@ def main(args):
         metavar="<regionSize>",
         type=int,
         required=True)
+    
+    parser.add_argument(
+        "-rs",
+        "--regionStart",
+        metavar="<regionSize>",
+        type=int,
+        required=True)
 
     parser.add_argument(
         "-o", 
@@ -96,6 +103,7 @@ def main(args):
     inputGAF = args.gaf[0]
     inputVCF = args.vcf[0]
     regionSize = args.regionSize
+    regionStart = args.regionStart
     outputVCF = args.output[0]
 
 
@@ -121,16 +129,16 @@ def main(args):
             # If the node is smaller than the set region size, then it is created using a deep graph traversal.
 
             ## adjLeft.
-            create_region(sv,  sv.gfaNodes[0], Orientation.REVERSE ,regionSize, "adjLeft", gfaNode2svRegionsDict, gfa_graph)              
+            create_region(sv,  sv.gfaNodes[0], Orientation.REVERSE ,regionSize, "adjLeft", gfaNode2svRegionsDict, gfa_graph, regionStart)              
 
             ## adjRight.
-            create_region(sv,  sv.gfaNodes[-1], Orientation.FORWARD ,regionSize, "adjRight", gfaNode2svRegionsDict, gfa_graph)
+            create_region(sv,  sv.gfaNodes[-1], Orientation.FORWARD ,regionSize, "adjRight", gfaNode2svRegionsDict, gfa_graph,regionStart)
             
             ## nodeSVbegin.
-            create_region(sv,  sv.gfaNodes[1], Orientation.FORWARD ,regionSize, "nodeSVbegin", gfaNode2svRegionsDict,gfa_graph)
+            create_region(sv,  sv.gfaNodes[1], Orientation.FORWARD ,regionSize, "nodeSVbegin", gfaNode2svRegionsDict,gfa_graph,regionStart)
 
             ## nodeSVend.
-            create_region(sv,  sv.gfaNodes[-2], Orientation.REVERSE ,regionSize, "nodeSVend", gfaNode2svRegionsDict, gfa_graph)
+            create_region(sv,  sv.gfaNodes[-2], Orientation.REVERSE ,regionSize, "nodeSVend", gfaNode2svRegionsDict, gfa_graph,regionStart)
 
             svsDict[sv.id] = sv
 
@@ -317,11 +325,11 @@ def main(args):
 # Functions.
 #############
 
-def create_region(sv, node, orientation, region_size, region_type, gfaNode2svRegionsDict, gfa_graph):
+def create_region(sv, node, orientation, region_size, region_type, gfaNode2svRegionsDict, gfa_graph, region_start):
     ''' Function to create regions based on node size and set region size '''
 
     # If the node is smaller than the set region size, then create the region using a deep graph traversal
-    if length_node(node) < region_size :
+    if length_node(node) < (region_size + region_start) :
         if region_type == 'nodeSVbegin' or region_type == 'nodeSVend' :
             if region_size > int(sv.length / 2):
                 regionSize_nodeSV = int(sv.length / 2)
@@ -336,7 +344,7 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
 
     # Otherwise create a region on the node
     else :
-        associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict)
+        associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
 
 
 def createRegion_DFS(node, orientation, region_size, gfa_graph):
@@ -422,6 +430,7 @@ def clean_region(region):
 def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
     ''' Function to switch to the expected format from dico_region post DFS '''
     for node,list_piece in region_dico.items():
+            node_lenght = length_node(node)
             for piece in list_piece:
                 cut,coords = piece
                 if region_type == "adjLeft":
@@ -433,45 +442,37 @@ def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
                 elif region_type == "nodeSVend":
                     sv.nodeSVend = sv.getNodeSVend(coords,node)
 
-                node_lenght = length_node(node)
                 gfaNode2svRegionsDict[node].append((sv, region_type,coords,node_lenght))
 
      
-def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict):
-    """Method to associate a GFA node to a SV region."""
-    
-    node_start = int(str(gfaNode).split(":")[1]) - 1             #positions in 'gfaNode_id' are 1-based and incl.
-    node_end = int(str(gfaNode).split(":")[2])  
-    node_length = (node_end-node_start)     #'node_start' and 'node_end' are 0-based and incl./excl. resp.
+def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict,region_start):
+    """Method to associate a GFA node to a SV region."""  
+    node_length = length_node(gfaNode)     #'node_start' and 'node_end' are 0-based and incl./excl. resp.
     
     # adjLeft.
     if region_type == "adjLeft":
-        coords = [(node_length-regionSize), node_length]
+        coords = [(node_length-(regionSize+region_start)), node_length - region_start]
         sv_object.adjLeft = sv_object.getAdjLeft(coords,gfaNode) 
 
 
     # adjRight.
     elif region_type == "adjRight":
-        coords = [0, regionSize]
+        coords = [region_start, regionSize+region_start]
         sv_object.adjRight = sv_object.getAdjRight(coords,gfaNode)
+    
 
-    # nodeSVbegin.
+    # nodeSVbegin
     elif region_type == "nodeSVbegin":
-        if regionSize > int(sv_object.length / 2):
-            regionSize_nodeSV = int(sv_object.length / 2)
-        else:
-            regionSize_nodeSV = regionSize
-        coords = [0, regionSize_nodeSV]
+        coords = [region_start, regionSize+region_start]
         sv_object.nodeSVbegin = sv_object.getNodeSVbegin(coords,gfaNode)
 
-    # nodeSVend.
+
+    # nodeSVend
     elif region_type == "nodeSVend":
-        if regionSize > int(sv_object.length / 2):
-            regionSize_nodeSV = int(sv_object.length / 2)
-        else:
-            regionSize_nodeSV = regionSize
-        coords = [(node_length-regionSize_nodeSV), node_length]
+        coords = [(node_length-(regionSize+region_start)), node_length-region_start]
         sv_object.nodeSVend = sv_object.getNodeSVend(coords,gfaNode)
+
+    gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
 
     if gfaNode not in gfaNode2svRegionsDict:
         gfaNode2svRegionsDict[gfaNode] = [(sv_object, region_type, coords,node_length)]

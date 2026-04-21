@@ -90,6 +90,13 @@ def main(args):
         type=int,
         required=False,
         default=10000)
+    parser.add_argument(
+        "-rs",
+        "--regionStart",
+        metavar="<regionStart (default 1000)>",
+        type=int,
+        required=False,
+        default=1000)
 
     parser.add_argument(
         "-a", 
@@ -113,6 +120,7 @@ def main(args):
     outPrefix = args.prefix
     threads = args.threads
     regionSize = args.regionSize
+    regionStart = args.regionStart
 
     script_path = os.path.abspath(__file__)
     script_dir = os.path.dirname(script_path)
@@ -145,7 +153,7 @@ def main(args):
             #### Analyze barcode signal & Genotype.
             print("### Analyze barcode signal & Genotype ###")
             outVCF = outPrefix + "_genotype.vcf"
-            c6 = "python3 {}/predict_genotype.py -a {} -v {} -o {} -s {} -g {}".format(script_dir, outGAF, inVCF, outVCF,regionSize, outGFA)
+            c6 = "python3 {}/predict_genotype.py -a {} -v {} -o {} -s {} -g {} -rs {}".format(script_dir, outGAF, inVCF, outVCF,regionSize, outGFA, regionStart)
             subprocess.run(c6, shell=True, check=True)
         
     else:
@@ -176,7 +184,7 @@ def main(args):
         #### Analyze barcode signal & Genotype.
         print("### Analyze barcode signal & Genotype ###")
         outVCF = outPrefix + "_genotype.vcf"
-        c6 = "python3 {}/predict_genotype.py -a {} -v {} -o {} -s {} -g {}".format(script_dir, outGAF, inVCF, outVCF,regionSize, outGFA)
+        c6 = "python3 {}/predict_genotype.py -a {} -v {} -o {} -s {} -g {} -rs {}".format(script_dir, outGAF, inVCF, outVCF,regionSize, outGFA, regionStart)
         subprocess.run(c6, shell=True, check=True)
 
 
