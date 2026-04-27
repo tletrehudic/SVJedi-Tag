@@ -66,7 +66,9 @@ def main(args):
 
                 header = "".join(header.split())
                 barcode = "".join(barcode.split())
-                file.write(f'{header+barcode}\n')
+                #file.write(f'{header+barcode}\n')
+                file.write(f'{header}BX:Z:{barcode}{barcode}\n')
+                #pour s'adapter aux reads simulés
             else : 
 
                 file.write(line)
