@@ -62,6 +62,7 @@ def main(args):
             if line.startswith("@") :
                 if '\t' in line:
                     header = line.split('\t')[0]
+                    header = header.split(' ')[0]
                 else:
                     header = line.split(' ')[0]
                 res = re.search(r'BX:Z:(\S+)', line)
