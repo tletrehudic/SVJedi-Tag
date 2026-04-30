@@ -150,9 +150,13 @@ def main(args):
     #########################
     #B. Process aln results.
     #########################
+    compteur_30 = 0
+    compteur_20 = 0
+    compteur_10 = 0
+    compteur_total = 0
     with open(inputGAF, "r", encoding='UTF-8') as gafFile:
         for line in gafFile:
-            
+            compteur_total += 1
             readID, readLen, __, __, __, path, __, pos_start, pos_end, __, alnLen, mapq, *__ = line.split("\t")
             #readID, __, __, readLen, __, __, __, path, __, pos_start, pos_end, __, alnLen, mapq, *__ = line.split("\t")
             
@@ -161,9 +165,14 @@ def main(args):
             if path == "*":             #remove unmapped reads
                 continue
             cov = int(alnLen) / int(readLen)
-            if cov < 0.9:
-                continue
+            # if cov < 0.9:
+            #     continue
+            if int(mapq) < 20:
+                compteur_20 += 1
+            if int(mapq) < 10:
+                compteur_10 += 1
             if int(mapq) < 30:
+                compteur_30 += 1
                 continue
 
             #2. Get the barcode ID.
@@ -221,7 +230,13 @@ def main(args):
                                 sv.nodeSVend.addBarcode(barcodeID)
 
                 # TODO : take into account the information split-reads
-
+    print(f"compteur_total : {compteur_total}")
+    print(f"compteur_10 : {compteur_10}")
+    print(f"compteur_20 : {compteur_20}")
+    print(f"compteur_30 : {compteur_30}")
+    print(f"% de reads perdu avec compteur_10 : {compteur_10/compteur_total*100}")
+    print(f"% de reads perdu avec compteur_20 : {compteur_20/compteur_total*100}")
+    print(f"% de reads perdu avec compteur_30 : {compteur_30/compteur_total*100}")
     ###########################
     #C. Estimate the genotype.
     ###########################
