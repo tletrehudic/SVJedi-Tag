@@ -418,27 +418,32 @@ def length_node(node):
 
 
 def clean_region(region):
-    ''' Function that processes nodes where several regions read in both orientations are present and checks that the regions do not overlap. '''
-    for node in region.keys():
-        if len(region[node]) > 1 :
-            #print(region, "\n")
-            size_forward = 0
-            size_reverse = 0
-            for i in range(2):
-                if region[node][i][0] == "CutF" :
-                    if size_forward < region[node][i][1][1] - region[node][i][1][0] :
-                        size_forward = region[node][i][1][1] - region[node][i][1][0]
-                if region[node][i][0] == "CutR" :
-                    if size_reverse < region[node][i][1][1] - region[node][i][1][0] :
-                        size_reverse = region[node][i][1][1] - region[node][i][1][0]
+    for node, list_piece in region.items():
+        if len(list_piece) <= 1:
+            continue
+            
+        if any(cut == "Full" for cut, coord in list_piece):
+            region[node] = [('Full', [0, length_node(node)])]
+            continue
 
-            if (size_forward + size_reverse) >= length_node(node) :
-                region[node]=[('Full',[0,length_node(node)])]
+        size_forward = 0
+        size_reverse = length_node(node)
 
-            if size_reverse == 0 :
-                region[node]=[('CutF',[0,size_forward])]
-            elif size_forward == 0 :
-                region[node]=[('CutR',[0,size_reverse])]
+        for cut, coord in list_piece:
+            if cut == "CutF":
+                size_forward = max(size_forward, coord[1])
+            elif cut == "CutR":
+                size_reverse = min(size_reverse, coord[0])
+            
+        if size_forward >= size_reverse :
+            region[node] = [('Full', [0, length_node(node)])]
+        elif size_forward > 0 or size_reverse < length_node(node):
+            if size_reverse == length_node(node):
+                region[node] = [('CutF', [0, size_forward])]
+            elif size_forward == 0:
+                region[node] = [('CutR', [size_reverse,length_node(node)])]
+            else:
+                region[node] = [('CutF', [0, size_forward]), ('CutR', [size_reverse, length_node(node)])]
     return region
             
 
