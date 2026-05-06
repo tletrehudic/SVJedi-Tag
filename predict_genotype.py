@@ -342,17 +342,17 @@ def main(args):
 
 def create_region(sv, node, orientation, region_size, region_type, gfaNode2svRegionsDict, gfa_graph, region_start):
     ''' Function to create regions based on node size and set region size '''
-
+    region_end = region_size + region_start
     # If the node is smaller than the set region size, then create the region using a deep graph traversal
     if length_node(node) < (region_size + region_start) :
         if region_type == 'nodeSVbegin' or region_type == 'nodeSVend' :
             if region_size > int(sv.length / 2):
-                regionSize_nodeSV = int(sv.length / 2)
-                dico_dfs_region = createRegion_DFS(node,orientation,regionSize_nodeSV,gfa_graph)
+                region_end = int(sv.length / 2)
+                dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
             else :
-                dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph)
+                dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
         else :
-            dico_dfs_region = createRegion_DFS(node,orientation,region_size, gfa_graph)
+            dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
         
         dico_dfs_region = clean_region(dico_dfs_region)
         format_region(sv,dico_dfs_region,region_type,gfaNode2svRegionsDict)
@@ -360,6 +360,48 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
     # Otherwise create a region on the node
     else :
         associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
+
+def createSubRegion(node, orientation, gfa_graph, start, end):
+
+    full_zone = createRegion_DFS(node, orientation, end, gfa_graph) #we recove all the nodes under the end region for all the path
+    full_zone = clean_region(full_zone) #without test, put full_zone in clean region
+    if start == 0:
+        return full_zone
+    forbidden_zone = createRegion_DFS(node, orientation, start, gfa_graph) #we recove all the nodes under the start region for all the path
+    forbidden_zone = clean_region(forbidden_zone) #without test, put forbidden_zone in clean region
+
+
+    final_region = defaultdict(list) 
+
+    for node_id, node_segments in full_zone.items(): # for each nodes that constitute full region
+        if node_id not in forbidden_zone:   # if this node not in forbiden region, we add it
+            final_region[node_id].extend(node_segments)
+        else:                         # if this node is in, how is it (full ?)
+            node_len = length_node(node_id)
+            max_f = 0                 # initialization of the prohibition borders
+            min_r = node_len
+            
+            for segment_type_f, segment_coord_f in forbidden_zone[node_id]: #we recover the forbiden part of this node and forbidden_zone[node_id] = node_segment_f(orbidden)
+                if segment_type_f == "Full": #f for forbidden, if not f, it's full_zone
+                    max_f = node_len # Force total exclusion because we enter in the if "maxf >=maxr"
+                    break            
+                if segment_type_f == "CutF": 
+                    max_f = max(max_f, segment_coord_f[1]) # border update
+                if segment_type_f == "CutR": 
+                    # We convert the CutR overlap to absolute coordinates
+                    # If CutR is 100bp on a node of 1000, the barrier is at 900
+                    min_r = min(min_r, segment_coord_f[0])
+
+            if max_f >= min_r: #security but normaly never coming because we clean the region of both dict so if it's the case, the node is full, not with cutR and cufF
+                continue
+
+            for segment_type, segment_coord in node_segments: #for all node_segment of this node
+                start_segment, end_segment = segment_coord    
+                new_start = max(start_segment, max_f)         #We calculate the new coordinates of each segment of nodes so that they are only in the non-forbidden zone = clearing. 
+                new_end = min(end_segment, min_r)
+                if new_end > new_start:                       #Checks that a portion of the sequence remains valid after applying the exclusion bounds (max_f and min_r).
+                    final_region[node_id].append(("cut", [new_start, new_end]))
+    return final_region
 
 
 def createRegion_DFS(node, orientation, region_size, gfa_graph):
