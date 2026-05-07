@@ -358,8 +358,8 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
         format_region(sv,dico_dfs_region,region_type,gfaNode2svRegionsDict)
 
     # Otherwise create a region on the node
-    else :
-        associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
+    #else :
+    #    associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
 
 def createSubRegion(node, orientation, gfa_graph, start, end):
 
