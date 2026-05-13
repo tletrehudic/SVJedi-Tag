@@ -155,6 +155,10 @@ def main(args):
     compteur_10 = 0
     compteur_total = 0
     with open(inputGAF, "r", encoding='UTF-8') as gafFile:
+        compteurA = 0
+        compteurB = 0 
+        compteurC = 0
+        compteurG = 0 
         for line in gafFile:
             compteur_total += 1
             readID, readLen, __, __, __, path, __, pos_start, pos_end, __, alnLen, mapq, *__ = line.split("\t")
@@ -187,11 +191,7 @@ def main(args):
             #3. Get a set of SV regions where at least one vgNode of the path belongs to.
             #############################################################################
             
-            list_way_node = extract_nodes(path)
-            compteurA = 0
-            compteurB = 0 
-            compteurC = 0
-            compteurG = 0        
+            list_way_node = extract_nodes(path)       
             for way, node in list_way_node:
                 if way == "forward" :
                     compteurA += 1 
