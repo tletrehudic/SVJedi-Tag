@@ -158,7 +158,8 @@ def main(args):
         compteurA = 0
         compteurB = 0 
         compteurC = 0
-        compteurG = 0 
+        compteurG = 0
+        compteurR = 0 
         for line in gafFile:
             compteur_total += 1
             readID, readLen, __, __, __, path, __, pos_start, pos_end, __, alnLen, mapq, *__ = line.split("\t")
@@ -209,6 +210,7 @@ def main(args):
                                 compteurG += 1
                                 sv.adjLeft.addBarcode(barcodeID)
                             elif region_type == "adjRight":
+                                compteurR += 1
                                 sv.adjRight.addBarcode(barcodeID)
                             elif region_type == "nodeSVbegin" :
                                 sv.nodeSVbegin.addBarcode(barcodeID)
@@ -237,9 +239,11 @@ def main(args):
                                 sv.nodeSVend.addBarcode(barcodeID)
 
                 # TODO : take into account the information split-reads
-    print(compteurA)
+    print(f"reads forward : {compteurA}")
     print(compteurB)
     print(compteurC)
+    print(compteurG)
+    print(compteurR)
     print(f"compteur_total : {compteur_total}")
     print(f"compteur_10 : {compteur_10}")
     print(f"compteur_20 : {compteur_20}")
