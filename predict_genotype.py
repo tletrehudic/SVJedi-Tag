@@ -187,18 +187,23 @@ def main(args):
             #3. Get a set of SV regions where at least one vgNode of the path belongs to.
             #############################################################################
             
-            list_way_node = extract_nodes(path)           
+            list_way_node = extract_nodes(path)
+            compteurA = 0
+            compteurB = 0 
+            compteurC = 0           
             for way, node in list_way_node:
                 if way == "forward" :
+                    compteurA += 1 
                     if node[0] in gfaNode2svRegionsDict.keys() :
                         list_of_sv_regiontype_coords = gfaNode2svRegionsDict[node[0]]            
                     else :
+                        compteurB += 1
                         continue
 
                     for sv_regiontype_coords in list_of_sv_regiontype_coords :
                         sv, region_type, coords_region, node_length = sv_regiontype_coords
                         if ((int(coords_region[0])< int(pos_start)) and (int(coords_region[1]) > int(pos_end))) :
-
+                            compteurC += 1
                             if region_type == "adjLeft" :
                                 sv.adjLeft.addBarcode(barcodeID)
                             elif region_type == "adjRight":
@@ -230,6 +235,9 @@ def main(args):
                                 sv.nodeSVend.addBarcode(barcodeID)
 
                 # TODO : take into account the information split-reads
+    print(compteurA)
+    print(compteurB)
+    print(compteurC)
     print(f"compteur_total : {compteur_total}")
     print(f"compteur_10 : {compteur_10}")
     print(f"compteur_20 : {compteur_20}")
