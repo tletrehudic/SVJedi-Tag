@@ -190,7 +190,8 @@ def main(args):
             list_way_node = extract_nodes(path)
             compteurA = 0
             compteurB = 0 
-            compteurC = 0           
+            compteurC = 0
+            compteurG = 0        
             for way, node in list_way_node:
                 if way == "forward" :
                     compteurA += 1 
@@ -205,6 +206,7 @@ def main(args):
                         if ((int(coords_region[0])< int(pos_start)) and (int(coords_region[1]) > int(pos_end))) :
                             compteurC += 1
                             if region_type == "adjLeft" :
+                                compteurG += 1
                                 sv.adjLeft.addBarcode(barcodeID)
                             elif region_type == "adjRight":
                                 sv.adjRight.addBarcode(barcodeID)
@@ -249,6 +251,8 @@ def main(args):
     #C. Estimate the genotype.
     ###########################
     # start = time()
+    compteurD = 0
+    compteurE = 0
     with open(inputVCF, "r", encoding='UTF-8') as inVCF, open(outputVCF, "w", encoding='UTF-8') as outVCF:
         sv_id = 0
         for line in inVCF:
@@ -269,7 +273,9 @@ def main(args):
 
                 sv = svsDict[sv_id]
                 # Analyse the barcodes signal and estimate the genotype.
+                compteurD += 1
                 if sv.type == "INV":
+                    compteurE += 1
 
                     #NB. Corresponds to Method 3.
 
@@ -342,6 +348,8 @@ def main(args):
 
         analysisFile.close()
         print(f"Done. Output genotypes in file {outputVCF}")
+        print(compteurD)
+        print(compteurE)
 
 
 #############
