@@ -341,13 +341,10 @@ def main(args):
 #############
 
 def create_region(sv, node, orientation, region_size, region_type, gfaNode2svRegionsDict, gfa_graph, region_start):
-    ''' Function to create regions based on node size and set region size '''
-    compteur_dfs = 0
-    compteur_associated = 0
     region_end = int(region_size + region_start)
     # If the node is smaller than the set region size, then create the region using a deep graph traversal
     if length_node(node) < region_end :
-        compteur_dfs += 1
+        print("dfs")
         if region_type == 'nodeSVbegin' or region_type == 'nodeSVend' :
             if region_size > int((sv.length -(2*region_start)) / 2):
                 region_end = int((sv.length -(2*region_start)) / 2)
@@ -362,10 +359,9 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
 
     # Otherwise create a region on the node
     else :
-        compteur_associated += 1
+        print("associated")
         # associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
-    print(compteur_associated)
-    print(compteur_dfs)
+
 
 def createSubRegion(node, orientation, gfa_graph, start, end):
 
