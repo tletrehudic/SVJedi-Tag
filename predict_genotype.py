@@ -364,9 +364,12 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
     region_end = int(region_size + region_start)
     if region_type == 'nodeSVbegin' or region_type == 'nodeSVend':
         associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
+    # else:
+    #     dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
+    #     format_region(sv,dico_dfs_region,region_type,gfaNode2svRegionsDict)
     else:
-        dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
-        format_region(sv,dico_dfs_region,region_type,gfaNode2svRegionsDict)
+        associate_GFANode_To_SVRegion_V2(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
+
     # If the node is smaller than the set region size, then create the region using a deep graph traversal
     # if length_node(node) < region_end :
     #     print("dfs")
@@ -568,6 +571,40 @@ def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, g
     else:
         gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
 
+def associate_GFANode_To_SVRegion_V2(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict,region_start):
+    """Method to associate a GFA node to a SV region."""  
+    node_length = length_node(gfaNode)     #'node_start' and 'node_end' are 0-based and incl./excl. resp.
+    
+    # adjLeft.
+    if region_type == "adjLeft":
+        coords = [0, node_length - region_start]
+        sv_object.adjLeft = sv_object.getAdjLeft(coords,gfaNode) 
+
+
+    # adjRight.
+    elif region_type == "adjRight":
+        coords = [region_start, node_length]
+        sv_object.adjRight = sv_object.getAdjRight(coords,gfaNode)
+    
+
+    # nodeSVbegin
+    elif region_type == "nodeSVbegin":
+        coords = [region_start, regionSize+region_start]
+        sv_object.nodeSVbegin = sv_object.getNodeSVbegin(coords,gfaNode)
+
+
+    # nodeSVend
+    elif region_type == "nodeSVend":
+        coords = [(node_length-(regionSize+region_start)), node_length-region_start]
+        sv_object.nodeSVend = sv_object.getNodeSVend(coords,gfaNode)
+
+    gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
+
+    if gfaNode not in gfaNode2svRegionsDict:
+        gfaNode2svRegionsDict[gfaNode] = [(sv_object, region_type, coords,node_length)]
+    else:
+        gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
+        
 def extract_nodes(path):       
     """Method to extract the nodes contained in a path from an alignment GAF file."""                                        
     list_way_node = []
