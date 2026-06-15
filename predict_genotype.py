@@ -85,7 +85,7 @@ def main(args):
     parser.add_argument(
         "-rs",
         "--regionStart",
-        metavar="<regionSize>",
+        metavar="<regionStart>",
         type=int,
         required=True)
 
@@ -150,18 +150,8 @@ def main(args):
     #########################
     #B. Process aln results.
     #########################
-    compteur_30 = 0
-    compteur_20 = 0
-    compteur_10 = 0
-    compteur_total = 0
     with open(inputGAF, "r", encoding='UTF-8') as gafFile:
-        compteurA = 0
-        compteurB = 0 
-        compteurC = 0
-        compteurG = 0
-        compteurR = 0 
         for line in gafFile:
-            compteur_total += 1
             readID, readLen, __, __, __, path, __, pos_start, pos_end, __, alnLen, mapq, *__ = line.split("\t")
             #readID, __, __, readLen, __, __, __, path, __, pos_start, pos_end, __, alnLen, mapq, *__ = line.split("\t")
             
@@ -172,12 +162,7 @@ def main(args):
             cov = int(alnLen) / int(readLen)
             # if cov < 0.9:
             #     continue
-            if int(mapq) < 20:
-                compteur_20 += 1
-            if int(mapq) < 10:
-                compteur_10 += 1
             if int(mapq) < 30:
-                compteur_30 += 1
                 continue
 
             #2. Get the barcode ID.
@@ -195,22 +180,18 @@ def main(args):
             list_way_node = extract_nodes(path)       
             for way, node in list_way_node:
                 if way == "forward" :
-                    compteurA += 1 
                     if node[0] in gfaNode2svRegionsDict.keys() :
                         list_of_sv_regiontype_coords = gfaNode2svRegionsDict[node[0]]            
                     else :
-                        compteurB += 1
                         continue
 
                     for sv_regiontype_coords in list_of_sv_regiontype_coords :
                         sv, region_type, coords_region, node_length = sv_regiontype_coords
                         if ((int(coords_region[0])< int(pos_start)) and (int(coords_region[1]) > int(pos_end))) :
-                            compteurC += 1
+                            
                             if region_type == "adjLeft" :
-                                compteurG += 1
                                 sv.adjLeft.addBarcode(barcodeID)
                             elif region_type == "adjRight":
-                                compteurR += 1
                                 sv.adjRight.addBarcode(barcodeID)
                             elif region_type == "nodeSVbegin" :
                                 sv.nodeSVbegin.addBarcode(barcodeID)
@@ -239,24 +220,10 @@ def main(args):
                                 sv.nodeSVend.addBarcode(barcodeID)
 
                 # TODO : take into account the information split-reads
-    print(f"reads forward : {compteurA}")
-    print(compteurB)
-    print(compteurC)
-    print(compteurG)
-    print(compteurR)
-    print(f"compteur_total : {compteur_total}")
-    print(f"compteur_10 : {compteur_10}")
-    print(f"compteur_20 : {compteur_20}")
-    print(f"compteur_30 : {compteur_30}")
-    print(f"% de reads perdu avec compteur_10 : {compteur_10/compteur_total*100}")
-    print(f"% de reads perdu avec compteur_20 : {compteur_20/compteur_total*100}")
-    print(f"% de reads perdu avec compteur_30 : {compteur_30/compteur_total*100}")
     ###########################
     #C. Estimate the genotype.
     ###########################
     # start = time()
-    compteurD = 0
-    compteurE = 0
     with open(inputVCF, "r", encoding='UTF-8') as inVCF, open(outputVCF, "w", encoding='UTF-8') as outVCF:
         sv_id = 0
         for line in inVCF:
@@ -277,9 +244,7 @@ def main(args):
 
                 sv = svsDict[sv_id]
                 # Analyse the barcodes signal and estimate the genotype.
-                compteurD += 1
                 if sv.type == "INV":
-                    compteurE += 1
 
                     #NB. Corresponds to Method 3.
 
@@ -352,8 +317,6 @@ def main(args):
 
         analysisFile.close()
         print(f"Done. Output genotypes in file {outputVCF}")
-        print(compteurD)
-        print(compteurE)
 
 
 #############
@@ -367,8 +330,7 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
     else:
         dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
         format_region(sv,dico_dfs_region,region_type,gfaNode2svRegionsDict)
-    # else:
-    #     associate_GFANode_To_SVRegion_V2(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
+
 
     # If the node is smaller than the set region size, then create the region using a deep graph traversal
     # if length_node(node) < region_end :
@@ -393,15 +355,15 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
 
 def createSubRegion(node, orientation, gfa_graph, start, end):
 
-    full_zone = createRegion_DFS(node, orientation, end, gfa_graph) #we recove all the nodes under the end region for all the path
-    full_zone = clean_region(full_zone) #without test, put full_zone in clean region
-    if start == 0:
+    full_zone = createRegion_DFS(node, orientation, end, gfa_graph) # We recove all the nodes under the end region for all the path
+    full_zone = clean_region(full_zone) # Ensure no part of a node is counted twice
+    if start == 0: # If no shift is needed, return the created region directly
         return full_zone
-    forbidden_zone = createRegion_DFS(node, orientation, start, gfa_graph) #we recove all the nodes under the start region for all the path
-    forbidden_zone = clean_region(forbidden_zone) #without test, put forbidden_zone in clean region
+    forbidden_zone = createRegion_DFS(node, orientation, start, gfa_graph) # We recove all the nodes under the start region for all the path
+    forbidden_zone = clean_region(forbidden_zone) # Ensure no part of a node is counted twice
 
 
-    final_region = defaultdict(list) 
+    final_region = defaultdict(list) # Initialize the dictionary that will contain the final region (full - forbidden)
 
     for node_id, node_segments in full_zone.items(): # for each nodes that constitute full region
         if node_id not in forbidden_zone:   # if this node not in forbiden region, we add it
@@ -413,24 +375,22 @@ def createSubRegion(node, orientation, gfa_graph, start, end):
             
             for segment_type_f, segment_coord_f in forbidden_zone[node_id]: #we recover the forbiden part of this node and forbidden_zone[node_id] = node_segment_f(orbidden)
                 if segment_type_f == "Full": #f for forbidden, if not f, it's full_zone
-                    max_f = node_len # Force total exclusion because we enter in the if "maxf >=maxr"
-                    break            
+                    max_f = node_len # Force total exclusion because we enter the "maxf >= maxr" if statement right after
+                    break            # Exit the for loop with the entire node being forbidden
                 if segment_type_f == "CutF": 
-                    max_f = max(max_f, segment_coord_f[1]) # border update
+                    max_f = max(max_f, segment_coord_f[1]) # Border update: get the largest part of the forbidden cutF
                 if segment_type_f == "CutR": 
-                    # We convert the CutR overlap to absolute coordinates
-                    # If CutR is 100bp on a node of 1000, the barrier is at 900
-                    min_r = min(min_r, segment_coord_f[0])
+                    min_r = min(min_r, segment_coord_f[0]) # Border update: get the largest part of the forbidden cutR
 
-            if max_f >= min_r: #security but normaly never coming because we clean the region of both dict so if it's the case, the node is full, not with cutR and cufF
-                continue
+            if max_f >= min_r: # Security but normaly never coming because we clean the region of both dict so if it's the case, the node is full, not with cutR and cufF
+                continue       # If this is the case, the entire node is forbidden, so we move to the next node without adding this one
 
-            for segment_type, segment_coord in node_segments: #for all node_segment of this node
-                start_segment, end_segment = segment_coord    
-                new_start = max(start_segment, max_f)         #We calculate the new coordinates of each segment of nodes so that they are only in the non-forbidden zone = clearing. 
-                new_end = min(end_segment, min_r)
-                if new_end > new_start:                       #Checks that a portion of the sequence remains valid after applying the exclusion bounds (max_f and min_r).
-                    final_region[node_id].append(("cut", [new_start, new_end]))
+            for segment_type, segment_coord in node_segments: # For all node_segments of this node (the node present in both the forbidden and full zones)
+                start_segment, end_segment = segment_coord    # Get the coordinates of this node
+                new_start = max(start_segment, max_f)         # Clean the segment to exclude any parts overlapping with the forbidden zone
+                new_end = min(end_segment, min_r)             # Same but for the other side 
+                if new_end > new_start:                       # Checks that a portion of the sequence remains valid after applying the exclusion bounds (max_f and min_r).
+                    final_region[node_id].append(("cut", [new_start, new_end])) # Add the modified segment of this node to the final region
     return final_region
 
 
@@ -490,41 +450,41 @@ def length_node(node):
 
 
 def clean_region(region):
-    for node, list_piece in region.items():
-        if len(list_piece) <= 1:
+    for node, list_piece in region.items(): # Loop through all nodes and their respective pieces in the region
+        if len(list_piece) <= 1:            # Skip if the node has at most one piece (no cleaning needed)
             continue
-            
-        if any(cut == "Full" for cut, coord in list_piece):
-            region[node] = [('Full', [0, length_node(node)])]
-            continue
+        
+        if any(cut == "Full" for cut, coord in list_piece): # If at least one piece is "Full", the entire node is add
+            region[node] = [('Full', [0, length_node(node)])]   # Overwrite with the full node
+            continue    # Move to the next node in the region
 
-        size_forward = 0
-        size_reverse = length_node(node)
+        size_forward = 0    # Initialize borders
+        size_reverse = length_node(node) # Initialize borders
 
-        for cut, coord in list_piece:
-            if cut == "CutF":
-                size_forward = max(size_forward, coord[1])
-            elif cut == "CutR":
-                size_reverse = min(size_reverse, coord[0])
+        for cut, coord in list_piece:   # Process each piece of the current node
+            if cut == "CutF":   # Node is Cut Forward (keeps the start, truncated at the end)
+                size_forward = max(size_forward, coord[1]) # Follow the maximum forward range
+            elif cut == "CutR":  # Node is Cut Reverse (keeps the end, truncated at the start)
+                size_reverse = min(size_reverse, coord[0]) # Follow the maximum reverse range
             
-        if size_forward >= size_reverse :
+        if size_forward >= size_reverse : # If pieces overlap or meet, they merge into a "Full" node
             region[node] = [('Full', [0, length_node(node)])]
-        elif size_forward > 0 or size_reverse < length_node(node):
-            if size_reverse == length_node(node):
+        elif size_forward > 0 or size_reverse < length_node(node): 
+            if size_reverse == length_node(node):   # If only CutF pieces were processed, keep the largest span
                 region[node] = [('CutF', [0, size_forward])]
-            elif size_forward == 0:
+            elif size_forward == 0: # If only CutR pieces were processed, keep the largest span
                 region[node] = [('CutR', [size_reverse,length_node(node)])]
-            else:
+            else: # If both CutF and CutR exist but do not overlap, keep both maximum spans
                 region[node] = [('CutF', [0, size_forward]), ('CutR', [size_reverse, length_node(node)])]
     return region
             
 
 def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
     ''' Function to switch to the expected format from dico_region post DFS '''
-    for node,list_piece in region_dico.items():
-            node_lenght = length_node(node)
-            for piece in list_piece:
-                cut,coords = piece
+    for node,list_piece in region_dico.items(): # Loop through all nodes and their respective pieces in the region
+            node_lenght = length_node(node) # Get the total length of the current node
+            for piece in list_piece:    # For each portion of these nodes that make up the region
+                cut,coords = piece      # we retrieve the coordinates of this portion
                 if region_type == "adjLeft":
                     sv.adjLeft = sv.getAdjLeft(coords,node)
                 elif region_type == "adjRight":
@@ -534,7 +494,7 @@ def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
                 elif region_type == "nodeSVend":
                     sv.nodeSVend = sv.getNodeSVend(coords,node)
 
-                gfaNode2svRegionsDict[node].append((sv, region_type,coords,node_lenght))
+                gfaNode2svRegionsDict[node].append((sv, region_type,coords,node_lenght)) #Add this node to the dictionary, specifying which precise partition of this node makes up which region of a SV
 
      
 def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict,region_start):
@@ -566,44 +526,6 @@ def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, g
 
     gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
 
-    if gfaNode not in gfaNode2svRegionsDict:
-        gfaNode2svRegionsDict[gfaNode] = [(sv_object, region_type, coords,node_length)]
-    else:
-        gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
-
-def associate_GFANode_To_SVRegion_V2(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict,region_start):
-    """Method to associate a GFA node to a SV region."""  
-    node_length = length_node(gfaNode)     #'node_start' and 'node_end' are 0-based and incl./excl. resp.
-    
-    # adjLeft.
-    if region_type == "adjLeft":
-        coords = [0, node_length - region_start]
-        sv_object.adjLeft = sv_object.getAdjLeft(coords,gfaNode) 
-
-
-    # adjRight.
-    elif region_type == "adjRight":
-        coords = [region_start, node_length]
-        sv_object.adjRight = sv_object.getAdjRight(coords,gfaNode)
-    
-
-    # nodeSVbegin
-    elif region_type == "nodeSVbegin":
-        coords = [region_start, regionSize+region_start]
-        sv_object.nodeSVbegin = sv_object.getNodeSVbegin(coords,gfaNode)
-
-
-    # nodeSVend
-    elif region_type == "nodeSVend":
-        coords = [(node_length-(regionSize+region_start)), node_length-region_start]
-        sv_object.nodeSVend = sv_object.getNodeSVend(coords,gfaNode)
-
-    gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
-
-    if gfaNode not in gfaNode2svRegionsDict:
-        gfaNode2svRegionsDict[gfaNode] = [(sv_object, region_type, coords,node_length)]
-    else:
-        gfaNode2svRegionsDict[gfaNode].append((sv_object, region_type, coords,node_length))
         
 def extract_nodes(path):       
     """Method to extract the nodes contained in a path from an alignment GAF file."""                                        
