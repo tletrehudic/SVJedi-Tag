@@ -489,7 +489,6 @@ def clean_region(region):
 
 def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
     ''' Function to switch to the expected format from dico_region post DFS '''
-    print(region_dico)
     for node,list_piece in region_dico.items(): # Loop through all nodes and their respective pieces in the region
             node_lenght = length_node(node) # Get the total length of the current node
             for piece in list_piece:    # For each portion of these nodes that make up the region
