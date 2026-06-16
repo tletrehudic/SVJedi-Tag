@@ -450,6 +450,7 @@ def length_node(node):
 
 
 def clean_region(region):
+    print(region)
     for node, list_piece in region.items(): # Loop through all nodes and their respective pieces in the region
         if len(list_piece) <= 1:            # Skip if the node has at most one piece (no cleaning needed)
             continue
@@ -476,11 +477,13 @@ def clean_region(region):
                 region[node] = [('CutR', [size_reverse,length_node(node)])]
             else: # If both CutF and CutR exist but do not overlap, keep both maximum spans
                 region[node] = [('CutF', [0, size_forward]), ('CutR', [size_reverse, length_node(node)])]
+    print(region)
     return region
             
 
 def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
     ''' Function to switch to the expected format from dico_region post DFS '''
+    print(region_dico)
     for node,list_piece in region_dico.items(): # Loop through all nodes and their respective pieces in the region
             node_lenght = length_node(node) # Get the total length of the current node
             for piece in list_piece:    # For each portion of these nodes that make up the region
@@ -495,7 +498,7 @@ def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
                     sv.nodeSVend = sv.getNodeSVend(coords,node)
 
                 gfaNode2svRegionsDict[node].append((sv, region_type,coords,node_lenght)) #Add this node to the dictionary, specifying which precise partition of this node makes up which region of a SV
-
+    print(gfaNode2svRegionsDict)
      
 def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict,region_start):
     """Method to associate a GFA node to a SV region."""  
