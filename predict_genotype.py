@@ -328,12 +328,9 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
     if region_type == 'nodeSVbegin' or region_type == 'nodeSVend':
         associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
     else:
-        if region_type == "adjRight":
-            print("region ajdR")
-        else:
-            print("adjL")
         dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
         format_region(sv,dico_dfs_region,region_type,gfaNode2svRegionsDict)
+        print(gfaNode2svRegionsDict)
 
 
     # If the node is smaller than the set region size, then create the region using a deep graph traversal
@@ -360,11 +357,7 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
 def createSubRegion(node, orientation, gfa_graph, start, end):
 
     full_zone = createRegion_DFS(node, orientation, end, gfa_graph) # We recove all the nodes under the end region for all the path
-    print("avant traitement")
-    print(full_zone)
     full_zone = clean_region(full_zone) # Ensure no part of a node is counted twice
-    print("apres traitement")
-    print(full_zone)
     if start == 0: # If no shift is needed, return the created region directly
         return full_zone
     forbidden_zone = createRegion_DFS(node, orientation, start, gfa_graph) # We recove all the nodes under the start region for all the path
