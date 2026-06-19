@@ -335,11 +335,10 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
 
     # If the node is smaller than the set region size, then create the region using a deep graph traversal
     # if length_node(node) < region_end :
-    #     print("dfs")
     #     if region_type == 'nodeSVbegin' or region_type == 'nodeSVend' :
-    #         if region_size > int((sv.length -(2*region_start)) / 2):
-    #             region_end = int((sv.length -(2*region_start)) / 2)
-    #             dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
+    #         if region_end > int(sv.length / 2):
+    #             region_end_SV = int(sv.length / 2)
+    #             dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end_SV)
     #         else :
     #             dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
     #     else :
@@ -350,7 +349,6 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
 
     # Otherwise create a region on the node
     # else :
-    #     print("associated")
     #     # associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
 
 
