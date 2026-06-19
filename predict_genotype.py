@@ -139,7 +139,7 @@ def main(args):
 
             ## nodeSVend.
             create_region(sv,  sv.gfaNodes[-2], Orientation.REVERSE ,regionSize, "nodeSVend", gfaNode2svRegionsDict, gfa_graph,regionStart)
-
+            print(gfaNode2svRegionsDict)
             svsDict[sv.id] = sv
 
     # Create a file containing the analysis results.
@@ -495,7 +495,7 @@ def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
                     sv.nodeSVend = sv.getNodeSVend(coords,node)
 
                 gfaNode2svRegionsDict[node].append((sv, region_type,coords,node_lenght)) #Add this node to the dictionary, specifying which precise partition of this node makes up which region of a SV
-    print(gfaNode2svRegionsDict)
+
 
 def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict,region_start):
     """Method to associate a GFA node to a SV region."""  
