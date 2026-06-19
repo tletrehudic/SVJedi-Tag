@@ -139,8 +139,10 @@ def main(args):
 
             ## nodeSVend.
             create_region(sv,  sv.gfaNodes[-2], Orientation.REVERSE ,regionSize, "nodeSVend", gfaNode2svRegionsDict, gfa_graph,regionStart)
-            print(gfaNode2svRegionsDict)
+
             svsDict[sv.id] = sv
+    print(gfaNode2svRegionsDict)
+
 
     # Create a file containing the analysis results.
     analysis_file = str(inputGAF).rsplit("_vgGiraffe.gaf", maxsplit=1)[0] + "_analysis.txt"
