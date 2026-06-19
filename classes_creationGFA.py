@@ -219,6 +219,9 @@ class SV:
     #Method "__str__"
     def __str__(self):
         return f"{self.format}"
+    
+    def __repr__(self):
+        return f"SV({self.format})"
 
     def getAdjLeft(self, coords, node):
         """Method to return the adjLeft region of this SV."""
