@@ -494,7 +494,8 @@ def format_region(sv,region_dico, region_type,gfaNode2svRegionsDict):
                     sv.nodeSVend = sv.getNodeSVend(coords,node)
 
                 gfaNode2svRegionsDict[node].append((sv, region_type,coords,node_lenght)) #Add this node to the dictionary, specifying which precise partition of this node makes up which region of a SV
-     
+    print(gfaNode2svRegionsDict)
+    
 def associate_GFANode_To_SVRegion(sv_object, gfaNode, region_type, regionSize, gfaNode2svRegionsDict,region_start):
     """Method to associate a GFA node to a SV region."""  
     node_length = length_node(gfaNode)     #'node_start' and 'node_end' are 0-based and incl./excl. resp.
