@@ -346,14 +346,6 @@ def create_region(sv, node, orientation, region_size, region_type, gfaNode2svReg
     else :
         associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
 
-#Sans condition de taille, qd on est sûr que toutes les conditions sont remplies:
-
-# if region_type == 'nodeSVbegin' or region_type == 'nodeSVend':
-#     associate_GFANode_To_SVRegion(sv, node,region_type, region_size, gfaNode2svRegionsDict, region_start)
-# else:
-#     dico_dfs_region = createSubRegion(node,orientation, gfa_graph, region_start, region_end)
-#     format_region(sv,dico_dfs_region,region_type,gfaNode2svRegionsDict)
-#     print(gfaNode2svRegionsDict)
 
 def createSubRegion(node, orientation, gfa_graph, start, end):
 
